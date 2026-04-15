@@ -1,0 +1,1224 @@
+ ▐▛███▜▌   Claude Code v2.1.83
+▝▜█████▛▘  Sonnet 4.6 · API Usage Billing
+  ▘▘ ▝▝    ~\Downloads\Breath Casino PreAlpha\Breath Casino PreAlpha
+
+> ну                                                                            
+
+● Skill(superpowers:using-superpowers)
+  ⎿  Successfully loaded skill
+
+● Да. Что делаем?
+
+> /mcp                                                                          
+  ⎿  MCP dialog dismissed
+
+> прочитай файлы проекта, как .md так и все скрипты                             
+И сделай ревью                                                                  
+
+● Skill(superpowers:dispatching-parallel-agents)
+  ⎿  Successfully loaded skill
+
+● Использую параллельных агентов для отдельного ревью документации и скриптов,
+  потом соберу общий вывод.
+
+● 2 Explore agents finished (ctrl+o to expand)
+   ├─ Review markdown docs · 7 tool uses · 0 tokens
+   │  ⎿  Done
+   └─ Review Unity scripts · 24 tool uses · 0 tokens
+      ⎿  Done
+
+● Сделал ревью по .md и по всем основным C#-скриптам.
+
+  Главное
+
+  Проект сейчас выглядит как blockout/prototype, а не как реализация правил из
+  Assets/MECHANICS.md. Самые важные проблемы — это расхождения между 
+  документацией и кодом, из‑за которых дальше легко развивать не ту игру.
+
+  ---
+  Критичные проблемы
+
+  1. Документация противоречит сама себе
+
+  - Assets/MECHANICS.md:124
+  - CLAUDE.md:74
+
+  Что не так:
+  - CLAUDE.md говорит, что в игре активны только Cancel / Duplicate / Steal.
+  - MECHANICS.md всё ещё описывает Block / Exchange / Prohibit.
+
+  Риск:
+  - Любая логика дуэли может быть реализована “не по тем” правилам.
+
+  ---
+  2. Код использует удалённые спецкарты
+
+  - Assets/Scripts/Core/BlockoutGameModels.cs
+  - Assets/Scripts/Managers/BlockoutCardManager.cs
+  - Assets/Scripts/Managers/TestGameManager.cs
+
+  Что не так:
+  - В коде реально существуют и участвуют в резолве Block, Exchange, Prohibit.
+  - Это прямо расходится с текущими правилами проекта.
+
+  Риск:
+  - Основная механика боя сейчас не соответствует source of truth.
+
+  ---
+  3. Колоды работают не по правилам
+
+  - Assets/Scripts/Managers/BlockoutCardManager.cs
+
+  Что не так:
+  - Колоды пересоздаются.
+  - Если колода и сброс пусты, код всё равно генерирует новую карту.
+  - На мини-раунд руки очищаются и раздаются заново, вместо нормального
+  управления остатком карт.
+
+  Риск:
+  - Ломается дефицит карт, стратегия и вся экономика раундов.
+
+  ---
+  4. Слоты и правила размещения не совпадают с механикой
+
+  - Assets/Scripts/Managers/TestGameManager.cs
+  - Assets/Scripts/Table/BlockoutCardSlot.cs
+
+  Что не так:
+  - В механике у каждого игрока 2 слота.
+  - В коде модель ближе к main slot + special slot.
+  - Есть жёсткая привязка: сначала main, потом special.
+
+  Риск:
+  - Нельзя корректно реализовать реальные ограничения по slot1/slot2.
+
+  ---
+  5. O2 и Last Breath расходятся между кодом и правилами
+
+  - Assets/MECHANICS.md:160
+  - Assets/MECHANICS.md:186
+  - CLAUDE.md:77
+  - Assets/Scripts/Managers/TestGameManager.cs
+  - Assets/Scripts/Systems/OxygenSystem.cs
+
+  Что не так:
+  - В доках есть конфликт 60/60/60 vs 60/50/40.
+  - В коде сейчас 60/45/30.
+  - В проекте две разные O2-системы.
+  - OxygenSystem сбрасывает Last Breath по раундам, хотя по правилам он один раз
+   за игру.
+
+  Риск:
+  - Таймер и смертельные состояния будут вести себя нестабильно и не по дизайну.
+
+  ---
+  Средние проблемы
+
+  6. Используется новый Input System, хотя проект просит Legacy Input
+
+  - Assets/Scripts/Managers/TestGameManager.cs
+  - Assets/Scripts/Camera/BlockoutCameraController.cs
+  - Assets/Scripts/Interaction/BlockoutInteractionRaycaster.cs
+
+  Что не так:
+  - В CLAUDE.md явно сказано использовать Input.GetKeyDown / Input.GetAxis.
+  - В коде используется UnityEngine.InputSystem.
+
+  ---
+  7. UI-текст не на TextMeshPro
+
+  - Assets/Scripts/UI/BlockoutTooltipDisplay.cs
+
+  Что не так:
+  - Используется UnityEngine.UI.Text, хотя в проектных указаниях — TMP.
+
+  ---
+  8. Тикеты расходятся с механикой
+
+  - Assets/Scripts/Core/BlockoutGameModels.cs
+  - Assets/Scripts/Managers/TestTicketManager.cs
+  - Assets/MECHANICS.md:202
+
+  Что не так:
+  - В коде есть лишний LifeForCards, которого нет в механике.
+  - Описания тикетов местами не совпадают с реальным эффектом.
+
+  ---
+  9. Tooltip-описания спецкарт не соответствуют логике
+
+  - Assets/Scripts/Interaction/BlockoutCardInteractable.cs
+  - Assets/Scripts/Managers/TestGameManager.cs
+
+  Что не так:
+  - Текст для игрока говорит одно, логика делает другое.
+  - Особенно заметно на Block и Prohibit.
+
+  ---
+  По документации отдельно
+
+  Самые опасные конфликты
+
+  - Assets/MECHANICS.md vs CLAUDE.md по спецкартам.
+  - Assets/MECHANICS.md vs CLAUDE.md по слотам.
+  - Assets/MECHANICS.md внутри себя по O2.
+  - Assets/MECHANICS.md по тикетам: написано “тикеты не влияют на дуэль”, но
+  VoidTransaction влияет.
+
+  Ещё заметил
+
+  - Assets/PLANS.md и Assets/CHANGELOG.md местами говорят, что вещи “сделаны”,
+  но механика всё ещё TBD.
+  - В Assets/CHANGELOG.md есть битая кириллица.
+
+  ---
+  Вывод
+
+  Сейчас главная проблема не в косметике кода, а в том, что:
+
+  1. доки не согласованы между собой
+  2. код реализует старую/временную версию правил
+  3. ядро игры (deck / specials / slots / O2) уже разошлось с дизайном
+
+  ---
+  Что я бы чинил первым
+
+  1. Привести Assets/MECHANICS.md к одному состоянию истины.
+  2. После этого синхронизировать:
+    - BlockoutGameModels.cs
+    - BlockoutCardManager.cs
+    - TestGameManager.cs
+    - TestTicketManager.cs
+    - OxygenSystem.cs
+  3. Потом уже чистить Input/UI/tooltip’ы.
+
+  ---
+  Если хочешь, следующим сообщением я могу сделать структурированный чеклист 
+  несоответствий “механика → какой файл/метод менять”. Это будет уже прям
+  удобный план правок.
+
+✻ Sautéed for 4m 26s
+
+> нынешний код хорош, но не идеален. Сейчас нужно пофиксить камеру,вверх курсор 
+ двигаю, камера вниз смотрит, нужно наоборот                                    
+Так же сделать слоты карт одинаковыми, чтобы можно было положить и спец карту и 
+ обычную карту                                                                  
+в приоритете .md файлы по путиC:\Users\nagatoro simp\Downloads\Breath Casino    
+PreAlpha\Breath Casino PreAlpha\Assets                                          
+и claude C:\Users\nagatoro simp\Downloads\Breath Casino PreAlpha\Breath Casino  
+PreAlpha\CLAUDE.md                                                              
+Они истина, остальные файлы переименуй в олд, и обращаться к ним стоит когда    
+есть проблемы в понимании сути                                                  
+Если есть вопросы, задавай                                                      
+
+● Skill(superpowers:brainstorming)
+  ⎿  Successfully loaded skill
+  Read 5 files (ctrl+o to expand)
+
+● Some of what we're working on might be easier to explain if I can show it to
+  you in a web browser. I can put together mockups, diagrams, comparisons, and
+  other visuals as we go. This feature is still new and can be token-intensive.
+  Want to try it? (Requires opening a local URL)
+
+✻ Worked for 1m 23s
+
+> /plan                                                                         
+  ⎿  Enabled plan mode
+
+> /claude-md-management:claude-md-improver                                      
+
+● Сначала быстро уточню текущие точки изменений и затем задам один уточняющий
+  вопрос про переименование legacy-файлов.
+
+● Explore(Inspect camera and slots) Sonnet 4.6
+  ⎿  Done (20 tool uses · 89.8k tokens · 2m 17s)
+  (ctrl+o to expand)
+
+● Plan(Design implementation plan) Sonnet 4.6
+  ⎿  Done (13 tool uses · 83.2k tokens · 2m 24s)
+  (ctrl+o to expand)
+
+● Updated plan
+  ⎿  /plan to preview
+
+● User answered Claude's questions:
+  ⎿  · Как поступить с переименованием legacy-файлов после правок? → 3 и 1
+     · Как трактовать правило слотов при реализации одинаковых слотов? → Слоты 
+     свободны, но спец карты можно ложить только когда уже есть одна карта на 
+     одной из слотов, атаки или защиты 
+
+● Уточнения получил. Обновляю план с ними и вынесу его на утверждение.
+
+● Updated plan
+  ⎿  /plan to preview
+
+● User approved Claude's plan
+  ⎿  Plan saved to: ~\.claude\plans\snazzy-splashing-leaf.md · /plan to edit
+     Context
+
+     Нужно привести текущий blockout-код ближе к правилам из Assets/MECHANICS.md
+      и CLAUDE.md, которые пользователь указал как единственный источник истины.
+      Приоритетные изменения: исправить инверсию вертикального free-look у
+     камеры и убрать типизацию слотов на combat/special, чтобы слоты работали
+     как одинаковые игровые позиции для размещения карт по правилам slot1/slot2.
+      Дополнительно пользователь хочет пометить legacy-материалы как old, но для
+      Unity-скриптов это требует осторожности из-за связей class/file/scene.
+
+     Recommended approach
+
+     1. Исправить вертикальный free-look только в
+     Assets/Scripts/Camera/BlockoutCameraController.cs.
+       - Изменить расчёт pitch в UpdateFreeCamera() так, чтобы движение курсора
+     вверх поднимало взгляд вверх.
+       - Не трогать state-transition камеры и не менять yaw.
+     2. Перевести слоты с модели Combat/Special на одинаковые игровые слоты.
+       - Оба слота должны быть одинаковыми по типу и визуальной подаче.
+       - Ограничение на спецкарты: спецкарту можно класть только если на одном
+     из слотов уже лежит обычная карта атаки или защиты.
+       - Assets/Scripts/Table/BlockoutCardSlot.cs
+           - убрать геймплейную зависимость от BlockoutSlotKind.Combat/Special
+         - оставить идентичность слота как позиции игрока/врага и номера слота
+         - выровнять визуалы/tooltip-подачу, чтобы слот больше не считался
+     отдельным типом
+       - Assets/Scripts/Interaction/BlockoutSlotInteractable.cs
+           - обновить клик и tooltip так, чтобы слот принимал текущую выбранную
+     карту без разделения на main/special
+       - Assets/Scripts/Core/PlayerSelectionTracker.cs
+           - убрать раздельное хранение SelectedMainCards и SelectedSpecialCard
+         - заменить на более простую модель выбора, привязанную к размещению по
+     слотам
+     3. Переписать подачу карт в слотах в
+     Assets/Scripts/Managers/TestGameManager.cs.
+       - заменить _playerSubmittedMainCards / _playerSubmittedSpecialCard на
+     состояние двух слотов игрока
+       - переработать:
+           - SubmitPlayerCard(...)
+         - SubmitPlayerSelectionToSlot(...)
+         - StageCombatSelection(...)
+         - StageSpecialSelection(...)
+         - GetSubmissionStatusText()
+         - логику подготовки дуэли/резолва
+       - валидацию делать по правилам из source-of-truth и уточнения
+     пользователя:
+           - слоты одинаковые, но ограничения по типам карт всё ещё действуют
+         - спецкарта разрешена только если уже размещена хотя бы одна обычная
+     карта атаки или защиты
+         - логика резолва должна читать содержимое слотов, а не legacy
+     main/special состояние
+     4. Подогнать AI под новую модель слотов.
+       - Assets/Scripts/AI/TestEnemyAI.cs
+       - AI должен выбирать размещение по двум одинаковым слотам, а не по схеме
+     main+special.
+     5. Обновить scene/bootstrap-зависимости без массового переименования
+     рантайм-скриптов.
+       - проверить и скорректировать места, где жёстко ожидаются
+     playerMainSlot/playerSpecialSlot/enemyMainSlot/enemySpecialSlot, прежде
+     всего в:
+           - Assets/Scripts/Bootstrap/TestSceneBootstrap.cs
+         - Assets/Scripts/Testing/BlockoutSceneValidator.cs
+         - Assets/Scripts/Camera/BlockoutCameraController.cs
+       - runtime C# файлы не переименовывать просто ради пометки old, пока не
+     будет полной замены и миграции scene references.
+     6. Legacy-rename strategy.
+       - Сначала исправить камеру и слоты.
+       - После этого переименовывать только docs и прочие не-runtime
+     legacy-файлы, которые действительно устарели и не являются source-of-truth.
+       - Unity C# файлы пока не переименовывать; к ним возвращаться отдельно
+     только если потребуется безопасная миграция.
+
+     Critical files
+
+     - Assets/Scripts/Camera/BlockoutCameraController.cs
+     - Assets/Scripts/Table/BlockoutCardSlot.cs
+     - Assets/Scripts/Interaction/BlockoutSlotInteractable.cs
+     - Assets/Scripts/Core/PlayerSelectionTracker.cs
+     - Assets/Scripts/Managers/TestGameManager.cs
+     - Assets/Scripts/AI/TestEnemyAI.cs
+     - Assets/Scripts/Bootstrap/TestSceneBootstrap.cs
+     - Assets/Scripts/Testing/BlockoutSceneValidator.cs
+     - Assets/MECHANICS.md
+     - CLAUDE.md
+
+     Existing code to reuse
+
+     - BlockoutCameraController.UpdateFreeCamera() — локальная точка для фикса
+     вертикального взгляда
+     - TestGameManager.SubmitPlayerSelectionToSlot(...) — текущая точка
+     маршрутизации клика по слоту
+     - TestGameManager.SubmitPlayerCard(...) — текущая точка маршрутизации клика
+      по карте
+     - BlockoutCardSlot.OnClick() / BlockoutSlotInteractable.OnClick() — текущий
+      вход для slot placement
+     - PlayerSelectionTracker.ClearSelection() и связанный selection flow —
+     можно использовать как основу при упрощении выбора
+
+     Verification
+
+     1. Камера
+       - В Play Mode в состоянии Free: курсор вверх → камера смотрит вверх;
+     курсор вниз → камера смотрит вниз.
+       - Переходы W/S/scroll между состояниями камеры не ломаются.
+     2. Слоты
+       - Оба слота игрока визуально и логически одинаковые.
+       - В слот можно положить обычную карту или спецкарту согласно правилам
+     source-of-truth.
+       - Tooltip/UX больше не говорят про combat / special слот.
+     3. Размещение и submit
+       - Игрок может разложить карты по slot1/slot2 без старого main/special
+     flow.
+       - Невалидные комбинации блокируются корректно.
+       - Submit через Space продолжает работать.
+     4. Дуэль и AI
+       - AI использует ту же модель slot1/slot2.
+       - Resolution читает карты из содержимого слотов, а не из legacy
+     main/special состояния.
+     5. Unity checks
+       - Открыть Assets/Scenes/SampleScene.unity
+       - Проверить Play Mode руками
+       - При необходимости использовать Unity MCP для scene/gameobject
+     inspection и compile-error check после правок
+
+● Skill(superpowers:test-driven-development)  ⎿  Successfully loaded skill
+
+● Начну с тестов на камеру и слоты, потом внесу минимальные правки под них.
+
+  Searched for 2 patterns, read 5 files (ctrl+o to expand)
+
+● Сначала дочитаю места, которые надо менять, чтобы написать точные failing
+  tests.
+
+  Read 4 files (ctrl+o to expand)
+
+  Searched for 4 patterns, read 1 file (ctrl+o to expand)
+
+● Сейчас добавлю EditMode-тесты, которые сначала упадут: один на инверсию pitch,
+   второй на правила одинаковых слотов.
+
+● Write(Assets\Tests\EditMode\CameraAndSlotRulesTests.cs)
+  ⎿  Wrote 58 lines to Assets\Tests\EditMode\CameraAndSlotRulesTests.cs
+       1 using NUnit.Framework;
+       2 using BreathCasino.Blockout;
+       3 
+       4 public class CameraAndSlotRulesTests
+       5 {
+       6     [Test]
+       7     public void ComputeFreeLookPitch_CursorUpProducesHigherPitch
+         ThanCursorDown()
+       8     {
+       9         float pitchAtTop = BlockoutCameraController.ComputeFreeL
+         ookPitch(1f, 0.4f, 30f);
+      10         float pitchAtCenter = BlockoutCameraController.ComputeFr
+         eeLookPitch(0.5f, 0.4f, 30f);
+     … +48 lines (ctrl+o to expand)
+
+● Запускаю новые тесты, чтобы увидеть RED перед правками.
+
+● coplay-mcp - list_unity_project_roots (MCP)
+  ⎿  {
+       "count": 1,
+       "projectRoots": [
+     … +7 lines (ctrl+o to expand)
+
+● coplay-mcp - set_unity_project_root (MCP)(unity_project_root:
+                                           "C:\\Users\\nagatoro
+                                           simp\\Downloads\\Breath Casino
+                                           PreAlpha\\Breath Casino PreAlpha")
+  ⎿  {
+       "result": "Unity project root set to: C:\\Users\\nagatoro simp\\Down
+     loads\\Breath Casino PreAlpha\\Breath Casino PreAlpha"
+     }
+
+● coplay-mcp - check_compile_errors (MCP)
+  ⎿  Error: Error calling tool 'check_compile_errors': Tool execution failed for
+      check_compile_errors: Unity Editor is not running at the specified project
+      root
+  ⎿  Please run /login · API Error: 403 
+     {"error":{"type":"new_api_error","message":"用户额度不足, 剩余额度: 
+     ＄0.000000 (request id: 20260326211143452815253RVBVRCVK)"},"type":"error"}
+✻ Cogitated for 11m 44s
+
+> /mcp                                                                          
+  ⎿  Reconnected to coplay-mcp.
+
+> /mcp                                                                          
+  ⎿  Reconnected to coplay-mcp.
+
+> продолжи                                                                      
+  ⎿  Please run /login · API Error: 403 
+     {"error":{"type":"new_api_error","message":"用户额度不足, 剩余额度: 
+     ＄0.000000 (request id: 2026032621125538429624929BRh3kf)"},"type":"error"}
+
+> продолжи                                                                      
+
+● Unity Editor не запущен — продолжу без него. Вношу изменения прямо сейчас.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Нашёл место. Строки 209–216: mouseY вычитается до 0.5 без инверсии. Исправляю
+  прямо сейчас.
+
+● Update(Assets\Scripts\Camera\BlockoutCameraController.cs)
+  ⎿  Error editing file
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(Assets\Scripts\Camera\BlockoutCameraController.cs)
+  ⎿  Added 2 lines, removed 1 line
+      208          {
+      209              Vector2 mousePos = Mouse.current != null ? Mouse.c
+           urrent.position.ReadValue() : new Vector2(UnityEngine.Input.mo
+           usePosition.x, UnityEngine.Input.mousePosition.y);
+      210              float mouseX = mousePos.x / Screen.width - 0.5f;
+      211 -            float mouseY = mousePos.y / Screen.height - 0.5f; 
+      211 +            // Инвертируем: курсор вверх → камера смотрит ввер
+          +х (отрицательный pitch)                                       
+      212 +            float mouseY = -(mousePos.y / Screen.height - 0.5f
+          +);                                                            
+      213  
+      214              float targetYaw = Mathf.Clamp(mouseX * cursorSensi
+           tivity * maxYaw * 2f, -maxYaw, maxYaw);
+      215              float targetPitch = Mathf.Clamp(15f + mouseY * cur
+           sorSensitivity * maxPitch * 2f, 15f - maxPitch * 0.6f, 15f + m
+           axPitch * 0.6f);
+
+● Камера исправлена. Теперь перехожу к рефакторингу слотов.
+
+  Read 1 file (ctrl+o to expand)
+
+● Читаю всё необходимое для рефакторинга слотов.
+
+  Read 2 files (ctrl+o to expand)
+
+● Читаю TestGameManager чтобы понять текущую логику размещения карт в слоты.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Читаю весь TestGameManager, чтобы понять StageCombatSelection /
+  StageSpecialSelection / поле _playerSubmittedMainCards.
+
+  Read 2 files (ctrl+o to expand)
+
+● Теперь разобрался с архитектурой. Подход такой:
+
+  Что нужно изменить:
+  1. BlockoutGameModels.cs — убрать различие Combat/Special из BlockoutSlotKind,
+   оставить просто Slot1/Slot2
+  2. BlockoutCardSlot.cs — убрать привязку к типу карты, слот принимает любую
+  карту
+  3. TestGameManager.cs — заменить разделённые _playerSubmittedMainCards +
+  _playerSubmittedSpecialCard на единый список по слотам, с проверкой: спецкарту
+   можно положить только если уже есть хотя бы одна карта в любом слоте
+  4. PlayerSelectionTracker.cs — объединить SelectedMainCards и
+  SelectedSpecialCard в единый выбор
+
+  Начинаю с BlockoutGameModels.cs:
+
+● Update(Assets\Scripts\Core\BlockoutGameModels.cs)
+  ⎿  Added 2 lines, removed 2 lines
+      64  
+      65      public enum BlockoutSlotKind
+      66      {
+      67 -        Combat,                                                
+      68 -        Special                                                
+      67 +        Slot1,                                                 
+      68 +        Slot2                                                  
+      69      }
+      70  
+      71      [Serializable]
+
+  Read 1 file (ctrl+o to expand)
+
+● Now let me continue the work on the slot refactoring.
+
+  Read 1 file (ctrl+o to expand)
+
+● Теперь вношу изменения в BlockoutCardSlot.cs — убираю жёсткую связь isMainSlot
+   → Combat/Special, делаем слоты одинаковыми по типу (просто Slot1/Slot2), но
+  визуально одинаковыми.
+
+● Update(Assets\Scripts\Table\BlockoutCardSlot.cs)
+  ⎿  Added 1 line, removed 2 lines
+       6      public class BlockoutCardSlot : MonoBehaviour, IBlockoutInt
+          eractable
+       7      {
+       8          [SerializeField] private string slotLabel = "Slot";
+       9 -        [SerializeField] private bool isMainSlot = true;       
+       9          [SerializeField] private BlockoutSide side = BlockoutSi
+          de.Player;
+      11 -        [SerializeField] private BlockoutSlotKind slotKind = Bl
+         -ockoutSlotKind.Combat;                                         
+      10 +        [SerializeField] private BlockoutSlotKind slotKind = Bl
+         +ockoutSlotKind.Slot1;                                          
+      11          [SerializeField] private float cardHoverHeight = 0.04f;
+      12          [SerializeField] private float cardStackSpacing = 0.04f
+          ;
+      13          [SerializeField] private float combatYawSpread = 8f;
+
+● Update(Assets\Scripts\Table\BlockoutCardSlot.cs)  ⎿  Added 1 line, removed 1 line
+      17          private Transform _cardAnchor;
+      18  
+      19          public string SlotLabel => slotLabel;
+      20 -        public bool IsMainSlot => slotKind == BlockoutSlotKind.
+         -Combat;                                                        
+      20 +        public bool IsMainSlot => slotKind == BlockoutSlotKind.
+         +Slot1;                                                         
+      21          public BlockoutSide Side => side;
+      22          public BlockoutSlotKind SlotKind => slotKind;
+      23          public Transform CardAnchor
+
+● Теперь фиксирую OnValidate и EnsureVisuals — там жёсткая перезапись slotKind
+  по isMainSlot.
+
+● Update(Assets\Scripts\Table\BlockoutCardSlot.cs)
+  ⎿  Removed 1 line
+      110  
+      111          private void OnValidate()
+      112          {
+      113 -            slotKind = isMainSlot ? BlockoutSlotKind.Combat : 
+          -BlockoutSlotKind.Special;                                     
+      113              EnsureVisuals(false);
+      114          }
+      115  
+
+● Now removing the slotKind override from EnsureVisuals:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(Assets\Scripts\Table\BlockoutCardSlot.cs)
+  ⎿  Removed 2 lines
+      120              else if (gameObject.name.Contains("Player"))
+      121                  side = BlockoutSide.Player;
+      122  
+      123 -            slotKind = isMainSlot ? BlockoutSlotKind.Combat : 
+          -BlockoutSlotKind.Special;                                     
+      124 -                                                              
+      123              Renderer renderer = GetComponent<Renderer>();
+      124              if (renderer != null)
+      125              {
+
+● Теперь фиксирую GetCardLocalRotation — там всё ещё проверяется
+  BlockoutSlotKind.Special:
+
+● Update(Assets\Scripts\Table\BlockoutCardSlot.cs)
+  ⎿  Added 1 line, removed 1 line
+       96  
+       97          public Quaternion GetCardLocalRotation(int index, int 
+           total)
+       98          {
+       99 -            if (slotKind == BlockoutSlotKind.Special || total 
+          -<= 1)                                                         
+       99 +            if (total <= 1)                                   
+      100                  return Quaternion.identity;
+      101  
+      102              float t = total > 1 ? (index - (total - 1) * 0.5f)
+            / (total - 1) : 0f;
+
+● Теперь обновляю PlayerSelectionTracker — объединяю SelectedMainCards и
+  SelectedSpecialCard в один нейтральный список карт и добавляю правило:
+  спецкарту можно класть только если в слоте уже есть хоть одна карта.
+
+  Read 1 file (ctrl+o to expand)
+
+● Теперь переписываю PlayerSelectionTracker — единый список, правила из
+  CLAUDE.md:
+
+● Write(Assets\Scripts\Core\PlayerSelectionTracker.cs)
+  ⎿  Added 32 lines, removed 44 lines
+       4  namespace BreathCasino.Blockout
+       5  {
+       6      /// <summary>
+       7 -    /// Хранит выбранную карту игрока. Для клика по карте и раз
+         -мещения в слот.                                                
+       7 +    /// Хранит выбранные карты игрока. Оба слота одинаковые:   
+       8 +    /// - Resource/Threat можно класть в любой слот            
+       9 +    /// - Special можно выбрать только если уже есть хотя бы од
+         +на карта в любом слоте (проверяется снаружи при стейджинге)    
+      10      /// </summary>
+      11      public static class PlayerSelectionTracker
+      12      {
+      11 -        private static readonly List<BlockoutCardDisplay> Selec
+         -tedMainCardsInternal = new();                                  
+      13 +        private static readonly List<BlockoutCardDisplay> Selec
+         +tedCardsInternal = new();                                      
+      14  
+      13 -        public static IReadOnlyList<BlockoutCardDisplay> Select
+         -edMainCards => SelectedMainCardsInternal;                      
+      14 -        public static BlockoutCardDisplay SelectedMainCard => S
+         -electedMainCardsInternal.Count > 0 ? SelectedMainCardsInternal[
+         -0] : null;                                                     
+      15 -        public static BlockoutCardDisplay SelectedSpecialCard {
+         - get; private set; }                                           
+      15 +        public static IReadOnlyList<BlockoutCardDisplay> Select
+         +edCards => SelectedCardsInternal;                              
+      16  
+      17 -        public static bool ToggleSelectedMain(BlockoutCardDispl
+         -ay card)                                                       
+      18 -        {                                                      
+      19 -            if (card == null) return false;                    
+      17 +        // Обратная совместимость: код, читающий SelectedMainCa
+         +rds, получает тот же список                                    
+      18 +        public static IReadOnlyList<BlockoutCardDisplay> Select
+         +edMainCards => SelectedCardsInternal;                          
+      19 +        public static BlockoutCardDisplay SelectedMainCard => S
+         +electedCardsInternal.Count > 0 ? SelectedCardsInternal[0] : nul
+         +l;                                                             
+      20  
+      21 -            if (SelectedMainCardsInternal.Contains(card))      
+      21 +        // Special-карта — первая Special в выборке (если есть)
+      22 +        public static BlockoutCardDisplay SelectedSpecialCard  
+      23 +        {                                                      
+      24 +            get                                                
+      25              {
+      23 -                SelectedMainCardsInternal.Remove(card);        
+      24 -                return false;                                  
+      26 +                for (int i = 0; i < SelectedCardsInternal.Count
+         +; i++)                                                         
+      27 +                    if (SelectedCardsInternal[i] != null &&    
+      28 +                        SelectedCardsInternal[i].CardType == Bl
+         +ockoutCardType.Special)                                        
+      29 +                        return SelectedCardsInternal[i];       
+      30 +                return null;                                   
+      31              }
+      26 -                                                               
+      27 -            SelectedMainCardsInternal.Add(card);               
+      28 -            return true;                                       
+      32          }
+      33  
+      31 -        public static bool ToggleSelectedSpecial(BlockoutCardDi
+         -splay card)                                                    
+      34 +        public static bool ToggleSelected(BlockoutCardDisplay c
+         +ard)                                                           
+      35          {
+      36              if (card == null) return false;
+      37  
+      35 -            if (SelectedSpecialCard == card)                   
+      38 +            if (SelectedCardsInternal.Contains(card))          
+      39              {
+      37 -                SelectedSpecialCard = null;                    
+      40 +                SelectedCardsInternal.Remove(card);            
+      41                  return false;
+      42              }
+      43  
+      41 -            if (SelectedSpecialCard != null)                   
+      42 -            {                                                  
+      43 -                SelectedSpecialCard.GetComponent<BlockoutCardIn
+         -teractable>()?.SetSelectedVisual(false);                       
+      44 -            }                                                  
+      45 -                                                               
+      46 -            SelectedSpecialCard = card;                        
+      44 +            SelectedCardsInternal.Add(card);                   
+      45              return true;
+      46          }
+      47  
+      50 -        public static void ClearMainSelection()                
+      51 -        {                                                      
+      52 -            for (int i = 0; i < SelectedMainCardsInternal.Count
+         -; i++)                                                         
+      53 -            {                                                  
+      54 -                BlockoutCardInteractable inter = SelectedMainCa
+         -rdsInternal[i] != null ? SelectedMainCardsInternal[i].GetCompon
+         -ent<BlockoutCardInteractable>() : null;                        
+      55 -                inter?.SetSelectedVisual(false);               
+      56 -            }                                                  
+      48 +        // Обратная совместимость с кодом, вызывающим ToggleSel
+         +ectedMain/ToggleSelectedSpecial                                
+      49 +        public static bool ToggleSelectedMain(BlockoutCardDispl
+         +ay card) => ToggleSelected(card);                              
+      50 +        public static bool ToggleSelectedSpecial(BlockoutCardDi
+         +splay card) => ToggleSelected(card);                           
+      51  
+      58 -            SelectedMainCardsInternal.Clear();                 
+      59 -        }                                                      
+      60 -                                                               
+      61 -        public static void ClearSpecialSelection()             
+      52 +        public static void ClearSelection()                    
+      53          {
+      63 -            if (SelectedSpecialCard != null)                   
+      54 +            for (int i = 0; i < SelectedCardsInternal.Count; i+
+         ++)                                                             
+      55              {
+      65 -                BlockoutCardInteractable inter = SelectedSpecia
+         -lCard.GetComponent<BlockoutCardInteractable>();                
+      66 -                inter?.SetSelectedVisual(false);               
+      56 +                if (SelectedCardsInternal[i] != null)          
+      57 +                    SelectedCardsInternal[i].GetComponent<Block
+         +outCardInteractable>()?.SetSelectedVisual(false);              
+      58              }
+      68 -                                                               
+      69 -            SelectedSpecialCard = null;                        
+      59 +            SelectedCardsInternal.Clear();                     
+      60          }
+      61  
+      72 -        public static void ClearSelection()                    
+      73 -        {                                                      
+      74 -            ClearMainSelection();                              
+      75 -            ClearSpecialSelection();                           
+      76 -        }                                                      
+      62 +        // Обратная совместимость                              
+      63 +        public static void ClearMainSelection() => ClearSelecti
+         +on();                                                          
+      64 +        public static void ClearSpecialSelection() => ClearSele
+         +ction();                                                       
+      65      }
+      66  }
+
+● Теперь создаю BlockoutSlotRules.cs — чистый static класс без MonoBehaviour,
+  который тесты могут дергать напрямую:
+
+● Write(Assets\Scripts\Core\BlockoutSlotRules.cs)
+  ⎿  Wrote 39 lines to Assets\Scripts\Core\BlockoutSlotRules.cs
+       1 namespace BreathCasino.Blockout
+       2 {
+       3     /// <summary>
+       4     /// Правила размещения карт по слотам согласно MECHANICS.md 
+         + CLAUDE.md.
+       5     /// Слоты одинаковые (нейтральные). Спецкарта разрешена толь
+         ко если
+       6     /// в одном из слотов уже лежит обычная карта (Resource или 
+         Threat).
+       7     /// </summary>
+       8     public static class BlockoutSlotRules
+       9     {
+      10         /// <summary>
+     … +29 lines (ctrl+o to expand)
+
+● Теперь обновляю TestGameManager — заменяю _playerSubmittedMainCards + 
+  _playerSubmittedSpecialCard на массив из двух слотов _playerSlotCards[2], и
+  переписываю SubmitPlayerSelectionToSlot, StageCombatSelection,
+  StageSpecialSelection, ClearPlayerSubmissionState, GetSubmissionStatusText:
+
+  Read 1 file (ctrl+o to expand)
+
+● Теперь вношу изменения в TestGameManager. Заменяю два отдельных поля на массив
+   _playerSlotCards[2] и переписываю логику размещения:
+
+● Update(Assets\Scripts\Managers\TestGameManager.cs)
+  ⎿  Added 26 lines, removed 2 lines
+      54          private bool _prohibitSpecialsNextMiniRound;
+      55          private int _prohibitSpecialsMinRoundsRemaining;
+      56          private bool _waitingForPlayerSubmit;
+      57 -        private readonly List<BlockoutCardDisplay> _playerSubmi
+         -ttedMainCards = new();                                         
+      58 -        private BlockoutCardDisplay _playerSubmittedSpecialCard
+         -;                                                              
+      57 +        // Карты, размещённые игроком: индекс 0 = Slot1, 1 = Sl
+         +ot2. null — слот пустой.                                       
+      58 +        private readonly BlockoutCardDisplay[] _playerSlotCards
+         + = new BlockoutCardDisplay[2];                                 
+      59 +        // Обратная совместимость: список основных карт для лог
+         +ики дуэли                                                      
+      60 +        private List<BlockoutCardDisplay> PlayerSubmittedMainCa
+         +rds                                                            
+      61 +        {                                                      
+      62 +            get                                                
+      63 +            {                                                  
+      64 +                var result = new List<BlockoutCardDisplay>();  
+      65 +                for (int i = 0; i < _playerSlotCards.Length; i+
+         ++)                                                             
+      66 +                    if (_playerSlotCards[i] != null &&         
+      67 +                        _playerSlotCards[i].CardType != Blockou
+         +tCardType.Special)                                             
+      68 +                        result.Add(_playerSlotCards[i]);       
+      69 +                return result;                                 
+      70 +            }                                                  
+      71 +        }                                                      
+      72 +        private BlockoutCardDisplay PlayerSubmittedSpecialCard 
+      73 +        {                                                      
+      74 +            get                                                
+      75 +            {                                                  
+      76 +                for (int i = 0; i < _playerSlotCards.Length; i+
+         ++)                                                             
+      77 +                    if (_playerSlotCards[i] != null &&         
+      78 +                        _playerSlotCards[i].CardType == Blockou
+         +tCardType.Special)                                             
+      79 +                        return _playerSlotCards[i];            
+      80 +                return null;                                   
+      81 +            }                                                  
+      82 +        }                                                      
+      83          private bool _waitingForPlayerShot;
+      84          private bool _playerShootAtSelf;
+      85          private BlockoutSide _currentAttacker;
+
+● Теперь обновляю SubmitPlayerSelectionToSlot, StageCombatSelection,
+  StageSpecialSelection, ClearPlayerSubmissionState, GetSubmissionStatusText и
+  все упоминания _playerSubmittedMainCards / _playerSubmittedSpecialCard:
+
+● Update(Assets\Scripts\Managers\TestGameManager.cs)
+  ⎿  Added 47 lines, removed 86 lines
+      416          {
+      417              if (!_waitingForPlayerSubmit || slot == null || sl
+           ot.Side != BlockoutSide.Player) return;
+      418  
+      419 -            if (slot.SlotKind == BlockoutSlotKind.Combat)     
+      420 -            {                                                 
+      421 -                if (!StageCombatSelection(slot))              
+      422 -                {                                             
+      423 -                    RefreshHud("Choose one or more combat card
+          -s first.");                                                   
+      424 -                    return;                                   
+      425 -                }                                             
+      419 +            // Определяем индекс слота (0 или 1)              
+      420 +            int slotIndex = slot.SlotKind == BlockoutSlotKind.
+          +Slot1 ? 0 : 1;                                                
+      421  
+      427 -                if (PlayerSelectionTracker.SelectedSpecialCard
+          - != null && _scene != null && _scene.playerSpecialSlot != null
+          -)                                                             
+      428 -                {                                             
+      429 -                    BlockoutCardSlot specialSlot = _scene.play
+          -erSpecialSlot.GetComponent<BlockoutCardSlot>();               
+      430 -                    if (specialSlot != null)                  
+      431 -                    {                                         
+      432 -                        StageSpecialSelection(specialSlot);   
+      433 -                    }                                         
+      434 -                }                                             
+      435 -            }                                                 
+      436 -            else                                              
+      422 +            // Слот уже занят                                 
+      423 +            if (_playerSlotCards[slotIndex] != null)          
+      424              {
+      438 -                if (_playerSubmittedMainCards.Count == 0 && Pl
+          -ayerSelectionTracker.SelectedMainCards.Count > 0 && _scene != 
+          -null && _scene.playerMainSlot != null)                        
+      439 -                {                                             
+      440 -                    BlockoutCardSlot combatSlot = _scene.playe
+          -rMainSlot.GetComponent<BlockoutCardSlot>();                   
+      441 -                    if (combatSlot != null)                   
+      442 -                    {                                         
+      443 -                        StageCombatSelection(combatSlot);     
+      444 -                    }                                         
+      445 -                }                                             
+      425 +                RefreshHud($"Slot {slotIndex + 1} already has 
+          +a card.");                                                    
+      426 +                return;                                       
+      427 +            }                                                 
+      428  
+      447 -                if (_playerSubmittedMainCards.Count == 0)     
+      448 -                {                                             
+      449 -                    RefreshHud("Place combat cards first, then
+          - special.");                                                  
+      450 -                    return;                                   
+      451 -                }                                             
+      429 +            BlockoutCardDisplay selected = PlayerSelectionTrac
+          +ker.SelectedSpecialCard                                       
+      430 +                ?? PlayerSelectionTracker.SelectedMainCard;   
+      431  
+      453 -                if (!StageSpecialSelection(slot))             
+      454 -                {                                             
+      455 -                    RefreshHud("Select a special card to place
+          - it.");                                                       
+      456 -                    return;                                   
+      457 -                }                                             
+      432 +            if (selected == null)                             
+      433 +            {                                                 
+      434 +                RefreshHud("Select a card first, then click a 
+          +slot.");                                                      
+      435 +                return;                                       
+      436              }
+      437  
+      438 +            if (!StageCardToSlot(selected, slotIndex, slot))  
+      439 +                return;                                       
+      440 +                                                              
+      441              RefreshHud(GetSubmissionStatusText());
+      442          }
+      443  
+      463 -        private bool StageCombatSelection(BlockoutCardSlot slo
+          -t)                                                            
+      444 +        private bool StageCardToSlot(BlockoutCardDisplay card,
+          + int slotIndex, BlockoutCardSlot slot)                        
+      445          {
+      465 -            if (slot == null || PlayerSelectionTracker.Selecte
+          -dMainCards.Count == 0) return false;                          
+      466 -            if (_playerSubmittedMainCards.Count > 0) return fa
+          -lse;                                                          
+      446 +            if (card == null || slot == null) return false;   
+      447  
+      468 -            if (_phase == BlockoutGamePhase.Defense && _curren
+          -tDefender == BlockoutSide.Player)                             
+      448 +            // Проверяем правила из MECHANICS.md:             
+      449 +            // - Спецкарту нельзя класть без обычной карты хот
+          +я бы в одном слоте                                            
+      450 +            BlockoutCardType? slot0Type = _playerSlotCards[0] 
+          +!= null ? _playerSlotCards[0].CardType : (BlockoutCardType?)nu
+          +ll;                                                           
+      451 +            BlockoutCardType? slot1Type = _playerSlotCards[1] 
+          +!= null ? _playerSlotCards[1].CardType : (BlockoutCardType?)nu
+          +ll;                                                           
+      452 +                                                              
+      453 +            if (!BlockoutSlotRules.CanPlaceCard(card.CardType,
+          + slot0Type, slot1Type, slotIndex))                            
+      454              {
+      470 -                foreach (var c in PlayerSelectionTracker.Selec
+          -tedMainCards)                                                 
+      471 -                {                                             
+      472 -                    if (c != null && c.IsThreat)              
+      473 -                    {                                         
+      474 -                        RefreshHud("Defense: only Resource. Th
+          -reat returned to hand.");                                     
+      475 -                        PlayerSelectionTracker.ClearMainSelect
+          -ion();                                                        
+      476 -                        return false;                         
+      477 -                    }                                         
+      478 -                }                                             
+      455 +                if (card.CardType == BlockoutCardType.Special)
+      456 +                    RefreshHud("Place a normal card first, the
+          +n play a special card.");                                     
+      457 +                return false;                                 
+      458              }
+      459  
+      481 -            int total = PlayerSelectionTracker.SelectedMainCar
+          -ds.Count;                                                     
+      482 -            for (int i = 0; i < total; i++)                   
+      460 +            // Защищающийся не может класть Threat карту      
+      461 +            if (_phase == BlockoutGamePhase.Defense && _curren
+          +tDefender == BlockoutSide.Player && card.IsThreat)            
+      462              {
+      484 -                BlockoutCardDisplay card = PlayerSelectionTrac
+          -ker.SelectedMainCards[i];                                     
+      485 -                if (card == null) continue;                   
+      486 -                                                              
+      487 -                _playerSubmittedMainCards.Add(card);          
+      488 -                card.MoveToSlot(slot.transform, slot.GetCardLo
+          -calPosition(i, total), slot.GetCardLocalRotation(i, total), 0.
+          -22f);                                                         
+      463 +                RefreshHud("Defense: only Resource cards allow
+          +ed.");                                                        
+      464 +                PlayerSelectionTracker.ClearSelection();      
+      465 +                return false;                                 
+      466              }
+      467  
+      491 -            PlayerSelectionTracker.ClearMainSelection();      
+      492 -            _cardManager?.RelayoutHands();                    
+      493 -                                                              
+      494 -            // +10s за размещение боевых карт                 
+      495 -            AddOxygen(10f);                                   
+      496 -                                                              
+      497 -            return _playerSubmittedMainCards.Count > 0;       
+      498 -        }                                                     
+      499 -                                                              
+      500 -        private bool StageSpecialSelection(BlockoutCardSlot sl
+          -ot)                                                           
+      501 -        {                                                     
+      502 -            if (slot == null || slot.SlotKind != BlockoutSlotK
+          -ind.Special) return false;                                    
+      503 -            if (_playerSubmittedMainCards.Count == 0 || _playe
+          -rSubmittedSpecialCard != null) return false;                  
+      504 -            if (_prohibitSpecialsNextMiniRound)               
+      468 +            if (_prohibitSpecialsNextMiniRound && card.CardTyp
+          +e == BlockoutCardType.Special)                                
+      469              {
+      470                  RefreshHud("Special cards prohibited this mini
+           -round.");
+      471                  return false;
+      472              }
+      473  
+      510 -            BlockoutCardDisplay special = PlayerSelectionTrack
+          -er.SelectedSpecialCard;                                       
+      511 -            if (special == null || special.CardType != Blockou
+          -tCardType.Special) return false;                              
+      512 -                                                              
+      513 -            _playerSubmittedSpecialCard = special;            
+      514 -            _playerSubmittedSpecialCard.MoveToSlot(slot.transf
+          -orm, Vector3.zero, Quaternion.identity, 0.22f);               
+      515 -            PlayerSelectionTracker.ClearSpecialSelection();   
+      474 +            _playerSlotCards[slotIndex] = card;               
+      475 +            card.MoveToSlot(slot.transform, Vector3.zero, Quat
+          +ernion.identity, 0.22f);                                      
+      476 +            PlayerSelectionTracker.ClearSelection();          
+      477              _cardManager?.RelayoutHands();
+      517 -                                                              
+      518 -            // +10s за размещение спецкарты                   
+      519 -            AddOxygen(10f);                                   
+      520 -                                                              
+      478 +            AddOxygen(card.CardType == BlockoutCardType.Specia
+          +l ? 10f : 10f);                                               
+      479              return true;
+      480          }
+      481  
+      482          private void ClearPlayerSubmissionState()
+      483          {
+      526 -            _playerSubmittedMainCards.Clear();                
+      527 -            _playerSubmittedSpecialCard = null;               
+      484 +            _playerSlotCards[0] = null;                       
+      485 +            _playerSlotCards[1] = null;                       
+      486              _waitingForPlayerSubmit = false;
+      487              PlayerSelectionTracker.ClearSelection();
+      488          }
+      489  
+      490          private string GetSubmissionStatusText()
+      491          {
+      534 -            if (_playerSubmittedMainCards.Count == 0)         
+      535 -                return "Choose combat cards, click the combat 
+          -slot, then optional special slot and SPACE.";                 
+      492 +            var mainCards = PlayerSubmittedMainCards;         
+      493 +            var special = PlayerSubmittedSpecialCard;         
+      494  
+      537 -            int totalWeight = GetCardsWeight(_playerSubmittedM
+          -ainCards);                                                    
+      538 -            string specialText = _playerSubmittedSpecialCard !
+          -= null ? $" + special {_playerSubmittedSpecialCard.CardName}" 
+          -: string.Empty;                                               
+      539 -            return $"Staged combat weight: {totalWeight}{speci
+          -alText}. Press SPACE to confirm.";                            
+      495 +            if (mainCards.Count == 0 && special == null)      
+      496 +                return "Select a card, then click a slot. Pres
+          +s SPACE to confirm.";                                         
+      497 +                                                              
+      498 +            int totalWeight = GetCardsWeight(mainCards);      
+      499 +            string specialText = special != null ? $" + specia
+          +l {special.CardName}" : string.Empty;                         
+      500 +            return $"Staged weight: {totalWeight}{specialText}
+          +. Press SPACE to confirm.";                                   
+      501          }
+      502  
+      503          private void TickOxygen()
+
+● Теперь обновляю все упоминания _playerSubmittedMainCards и
+  _playerSubmittedSpecialCard в теле RunDuelLoop и HandleDebugInput:
+
+  Read 1 file (ctrl+o to expand)
+
+● Теперь исправляю HandleDebugInput — удаляю устаревшие вызовы
+  StageCombatSelection и StageSpecialSelection из блока SPACE:
+
+● Update(Assets\Scripts\Managers\TestGameManager.cs)
+  ⎿  Added 15 lines, removed 13 lines
+      355  
+      356              if (keyboard.spaceKey.wasPressedThisFrame && _wait
+           ingForPlayerSubmit)
+      357              {
+      358 -                if (_playerSubmittedMainCards.Count > 0)      
+      358 +                var mainCards = PlayerSubmittedMainCards;     
+      359 +                var special = PlayerSubmittedSpecialCard;     
+      360 +                                                              
+      361 +                if (mainCards.Count > 0 || special != null)   
+      362                  {
+      363                      _waitingForPlayerSubmit = false;
+      364                      PlayerSelectionTracker.ClearSelection();
+      365                      Debug.Log($"{LogPrefix} Player submitted s
+           taged cards");
+      366                  }
+      364 -                else if (PlayerSelectionTracker.SelectedMainCa
+          -rds.Count > 0)                                                
+      367 +                else if (PlayerSelectionTracker.SelectedCards.
+          +Count > 0)                                                    
+      368                  {
+      366 -                    BlockoutCardSlot combatSlot = _scene != nu
+          -ll && _scene.playerMainSlot != null ? _scene.playerMainSlot.Ge
+          -tComponent<BlockoutCardSlot>() : null;                        
+      367 -                    if (combatSlot != null)                   
+      369 +                    // Автоматически кладём выбранные карты в 
+          +первый свободный слот                                         
+      370 +                    foreach (var card in PlayerSelectionTracke
+          +r.SelectedCards)                                              
+      371                      {
+      369 -                        StageCombatSelection(combatSlot);     
+      370 -                    }                                         
+      371 -                                                              
+      372 -                    if (PlayerSelectionTracker.SelectedSpecial
+          -Card != null && _scene != null && _scene.playerSpecialSlot != 
+          -null)                                                         
+      373 -                    {                                         
+      374 -                        BlockoutCardSlot specialSlot = _scene.
+          -playerSpecialSlot.GetComponent<BlockoutCardSlot>();           
+      375 -                        if (specialSlot != null)              
+      372 +                        for (int i = 0; i < 2; i++)           
+      373                          {
+      377 -                            StageSpecialSelection(specialSlot)
+          -;                                                             
+      374 +                            if (_playerSlotCards[i] != null) c
+          +ontinue;                                                      
+      375 +                            Transform slotTransform = i == 0 ?
+          + _scene?.playerMainSlot : _scene?.playerSpecialSlot;          
+      376 +                            if (slotTransform == null) continu
+          +e;                                                            
+      377 +                            BlockoutCardSlot s = slotTransform
+          +.GetComponent<BlockoutCardSlot>();                            
+      378 +                            if (s != null) StageCardToSlot(car
+          +d, i, s);                                                     
+      379 +                            break;                            
+      380                          }
+      381                      }
+      382  
+     ...
+      386                  }
+      387                  else
+      388                  {
+      387 -                    RefreshHud("No cards selected. Choose at l
+          -east one combat card before submitting.");                    
+      389 +                    RefreshHud("No cards selected. Choose at l
+          +east one card before submitting.");                           
+      390                      Debug.Log($"{LogPrefix} Player pressed SPA
+           CE with no cards selected — ignoring.");
+      391                  }
+      392              }
+
+● Теперь обновляю RunDuelLoop — заменяю обращения к _playerSubmittedMainCards и
+  _playerSubmittedSpecialCard на новые свойства:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(Assets\Scripts\Managers\TestGameManager.cs)
+  ⎿  Added 3 lines, removed 3 lines
+      620                      }
+      621                  }
+      622  
+      623 -                List<BlockoutCardDisplay> attCards = attacker 
+          -== BlockoutSide.Player && _playerSubmittedMainCards.Count > 0 
+      624 -                    ? new List<BlockoutCardDisplay>(_playerSub
+          -mittedMainCards)                                              
+      623 +                List<BlockoutCardDisplay> attCards = attacker 
+          +== BlockoutSide.Player && PlayerSubmittedMainCards.Count > 0  
+      624 +                    ? new List<BlockoutCardDisplay>(PlayerSubm
+          +ittedMainCards)                                               
+      625                      : GetAIAttackCards(attacker);
+      626 -                BlockoutCardDisplay attSpecial = attacker == B
+          -lockoutSide.Player ? _playerSubmittedSpecialCard : GetAISpecia
+          -lCard(attacker);                                              
+      626 +                BlockoutCardDisplay attSpecial = attacker == B
+          +lockoutSide.Player ? PlayerSubmittedSpecialCard : GetAISpecial
+          +Card(attacker);                                               
+      627  
+      628                  if (attacker != BlockoutSide.Player)
+      629                  {
+
+● Update(Assets\Scripts\Managers\TestGameManager.cs)
+  ⎿  Added 2 lines, removed 2 lines
+      653                  }
+      654  
+      655                  int attackWeight = GetCardsWeight(attCards);
+      656 -                List<BlockoutCardDisplay> defCards = defender 
+          -== BlockoutSide.Player && _playerSubmittedMainCards.Count > 0 
+      657 -                    ? new List<BlockoutCardDisplay>(_playerSub
+          -mittedMainCards)                                              
+      656 +                List<BlockoutCardDisplay> defCards = defender 
+          +== BlockoutSide.Player && PlayerSubmittedMainCards.Count > 0  
+      657 +                    ? new List<BlockoutCardDisplay>(PlayerSubm
+          +ittedMainCards)                                               
+      658                      : GetAIDefenseCards(defender, attackWeight
+           );
+      659  
+      660                  if (defender != BlockoutSide.Player)
+  ⎿  API Error: 400 {"error":{"type":"<nil>","message":"invalid_grant (request 
+     id: 20260326133708360904947bDbb8OCb) (request id: 
+     20260326133707118512766O8rwr2yp)"},"type":"error"}
+
+✻ Worked for 22m 15s
+> продолжи                                                                      
+  ⎿  API Error: 400 {"error":{"type":"<nil>","message":"invalid_grant (request 
+     id: 20260326134050601855366JLmiqAwW) (request id: 
+     20260326134049311637259vMVRgkbS)"},"type":"error"}
+
+> продолжи                                                                      
+  ⎿  API Error: 400 {"error":{"type":"<nil>","message":"invalid_grant (request 
+     id: 20260326134327476373910MuPPZicI) (request id: 
+     20260326134326147276377sksyO5Vg)"},"type":"error"}
+
+> продолжи                                                                      
+  ⎿  API Error: 400 {"error":{"type":"<nil>","message":"invalid_grant (request 
+     id: 20260326134915352902941wonEIPiY) (request id: 
+     20260326134913966100580GLGKEmvb)"},"type":"error"}
+
+> дальше можно?                                                                 
+  ⎿  API Error: 400 {"error":{"type":"<nil>","message":"invalid_grant (request 
+     id: 20260326134929921442388CBHCwbC) (request id: 
+     202603261349277846396792s1Jcp4U)"},"type":"error"}

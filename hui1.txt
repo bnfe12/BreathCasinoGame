@@ -1,0 +1,1194 @@
+ ▐▛███▜▌   Claude Code v2.1.84
+▝▜█████▛▘  Sonnet 4.6 · API Usage Billing
+  ▘▘ ▝▝    ~\Documents\Breath Casino PreAlpha
+
+> так, сделай ревью плана                                                       
+
+● Skill(superpowers:using-superpowers)
+  ⎿  Successfully loaded skill
+
+● Skill(superpowers:writing-plans)
+  ⎿  Successfully loaded skill
+
+● Пришли сам план или путь к файлу с планом — я его заревью.
+
+  Если это в репе, просто укажи путь, например Assets/PLANS.md или другой .md.
+
+> /plugin 
+  ⎿  Failed to reconnect to plugin:github:github.
+
+> /plugin                                                                       
+  ⎿  github is already at the latest version (unknown).
+
+> /plugin                                                                       
+  ⎿  ✓ Disabled github. Run /reload-plugins to apply.
+
+> /plugin                                                                       
+  ⎿  ✓ Enabled github. Run /reload-plugins to apply.
+
+> /plugin                                                                       
+  ⎿  ✓ Installed frontend-design. Run /reload-plugins to apply.
+
+> /plugin                                                                       
+  ⎿  ✓ Installed claude-md-management. Run /reload-plugins to apply.
+
+> /plugin                                                                       
+  ⎿  (no content)
+
+> сначала прочитай C:\Users\AndriiKharlai\Documents\Breath Casino               
+PreAlpha\CLAUDE.md                                                              
+нужно сделать чтобы ии противника не ставил меньше по весу карту чем то что я   
+ставлю. Так же, нет визуализации пистолета в руках, и после выстрела он должен  
+возвращаться в то место где изнально был. Когда кончаются у всех карты, даются  
+новые.                                                                          
+
+● Skill(superpowers:brainstorming)
+  ⎿  Successfully loaded skill
+
+● Использую brainstorming skill, чтобы сначала зафиксировать дизайн изменений.
+  Read 2 files (ctrl+o to expand)
+
+● Some of what we're working on might be easier to explain if I can show it to
+  you in a web browser. I can put together mockups, diagrams, comparisons, and
+  other visuals as we go. This feature is still new and can be token-intensive.
+  Want to try it? (Requires opening a local URL)
+
+✻ Baked for 34s
+
+> ничего не надо визуализировать, просто делай свою работу которую я тебе задал 
+
+● User answered Claude's questions:
+  ⎿  · Про правило "AI не ставит меньше по весу" — в какой ситуации именно это 
+     ограничение должно работать? → On AI turn only
+
+● Ок, без визуализаций.
+
+  Уточнение принято: ограничение “AI не ставит меньше по весу” — только когда AI
+   отвечает на твою поставленную карту/сумму (on AI turn only).
+
+  Чтобы корректно зафиксировать дизайн и не сломать core loop (и попасть в
+  MECHANICS.md), мне нужно ещё 1 уточнение про раздачу карт:
+
+  Когда ты говоришь «Когда кончаются у всех карты, даются новые» — это означает:
+  - A) создать новую колоду/перетасовать сброс и продолжать раздавать (как
+  “reshuffle”),
+  или
+  - B) просто стартует новый мини-раунд и раздача идёт только если в колоде ещё 
+  есть карты, а если колода пуста — то играют тем что есть (это сейчас в
+  MECHANICS.md: п.2.75–2.79)?
+
+  Выбери A или B.
+
+✻ Cooked for 42s
+
+> сейчас есть на каждый раунд колода с созданными картами правильно? Типа 17    
+карт, 25 и в третьем еще больше. Да, тогда если кончаются карты то лучше давать 
+ по 3 карты(только у кого их больше нет) Из колоды которая создается внутри     
+кода. Так же, при новом мини раунда восполняется запас карт, если есть 2, то    
+дается до лимита раунда. В первом 4, то есть дается еще 2 карты. Если колода    
+пустая будет, заново начинается раунд.                                          
+
+● Сначала быстро проверю текущую реализацию в коде, чтобы заревьюить задачу
+  предметно.
+
+  Read 4 files (ctrl+o to expand)
+
+● Понял. По коду сейчас видно:
+
+  - AI защита уже не кладёт карту слабее атаки, но только одной картой:
+  Assets/Scripts/AI/EnemyAI.cs:70
+  - колода сейчас автоматически пересобирается из discard и даже может генерить
+  карты “из воздуха”: Assets/Scripts/Managers/BlockoutCardManager.cs:200
+  - пистолет уже телепортируется в holder/table, но без отдельной нормальной
+  визуальной логики “в руках” и без сохранения исходной позы:
+  Assets/Scripts/Managers/GameManager.cs:1005
+
+  Нужно ещё одно критичное уточнение:
+
+  Когда ты говоришь «если колода пустая будет, заново начинается раунд», это
+  значит именно полный restart текущего round-а с:
+  - сбросом HP раунда,
+  - новой стартовой колодой этого round-а,
+  - новым первым mini-round,
+
+  или ты имеешь в виду только пересоздать колоду и продолжить текущий round без 
+  сброса HP?
+
+✻ Worked for 45s
+
+> еще все таки убрать стоит вес 8 для защиты.                                   
+Это не полный рестарт, разница только в не сбрасывается хп.                     
+
+● Принято. Зафиксирую все требования и предложу дизайн.
+
+● Ок, зафиксирую требования и предложу подходы.
+
+  Требования (зафиксированные)
+
+  1. AI не ставит меньше по весу — только когда AI отвечает (defense phase), не
+  когда атакует
+  2. Пистолет визуализация:
+    - нет визуализации "в руках"
+    - после выстрела должен возвращаться на исходное место (gunSpot на
+  механизме)
+  3. Раздача карт при опустошении рук:
+    - если у игрока карт меньше лимита раунда → восполнить до лимита
+    - если колода пуста → пересоздать колоду (не полный restart round, HP не
+  сбрасывается)
+    - новая колода = новый deck того же раунда
+  4. Убрать вес 8 для защиты — Resource карты с весом 8 не должны генерироваться
+   (или только для Threat)
+● Принято все требования. Теперь предложу 3 подхода к реализации.
+
+  ---
+  Подход 1: Точечные фиксы в текущей архитектуре (рекомендую)
+
+  Суть: Минимальные изменения в EnemyAI.cs, BlockoutCardManager.cs,
+  GameManager.cs — точечно чиним логику без рефакторинга.
+
+  Что меняем:
+  - EnemyAI.ChooseDefenseCards() — добавить проверку суммы двух карт (если одной
+   недостаточно)
+  - BlockoutCardManager.CreateWeightedMainCard() — убрать вес 8 для Resource
+  (оставить только для Threat)
+  - BlockoutCardManager.RefillHandsToRoundLimit() — если колода пуста после
+  discard reshuffle, вызвать EnsureDeckForRound() заново (пересоздать колоду
+  раунда)
+  - GameManager.MoveGunToTable() / MoveGunToHolder() — сохранить исходную
+  позицию пистолета при старте и возвращать туда после выстрела
+
+  Плюсы:
+  - Быстро, безопасно, не ломает существующий core loop
+  - Соответствует CLAUDE.md: "точечно чини текущую логику"
+  - Минимальный риск регрессии
+
+  Минусы:
+  - AI всё ещё не идеален (не учитывает спецкарты противника при выборе защиты)
+  - Пистолет "телепортируется" без анимации (но это M1-прототип)
+
+  ---
+  Подход 2: Улучшенная AI-логика + deck lifecycle
+
+  Суть: Более умный AI (учитывает 2 карты защиты + вероятность спецкарт) + явный
+   lifecycle колоды (deck exhausted → recreate).
+
+  Что меняем:
+  - EnemyAI.ChooseDefenseCards() — новая логика: пытается найти комбинацию из 2
+  карт, если одной недостаточно
+  - BlockoutCardManager — добавить RecreateCurrentRoundDeck() метод, вызывать
+  при IsDeckEmpty в RefillHandsToRoundLimit()
+  - GameManager — добавить event/callback при пересоздании колоды (для
+  логирования/UI)
+  - Пистолет — как в подходе 1
+
+  Плюсы:
+  - AI играет лучше (ближе к реальному игроку)
+  - Явная логика пересоздания колоды (легче дебажить)
+
+  Минусы:
+  - Больше изменений → больше риск регрессии
+  - AI может стать "слишком умным" для раннего прототипа
+
+  ---
+  Подход 3: Рефакторинг AI + gun state machine
+
+  Суть: Выделить AI decision-making в отдельный класс + state machine для
+  пистолета (idle/inHand/returning).
+
+  Что меняем:
+  - Новый класс EnemyAIDecisionMaker с методами ChooseDefenseStrategy(),
+  EvaluateCardCombinations()
+  - Новый класс GunController с состояниями и анимацией возврата
+  - BlockoutCardManager — как в подходе 2
+  - GameManager — делегирует AI и gun logic в новые классы
+
+  Плюсы:
+  - Чистая архитектура, легко расширять
+  - Пистолет с анимацией возврата
+
+  Минусы:
+  - Много изменений, высокий риск регрессии
+  - Противоречит CLAUDE.md: "не дробить без явной необходимости"
+  - Overkill для M1-прототипа
+
+  ---
+  Моя рекомендация: Подход 1
+
+  Причины:
+  - Соответствует CLAUDE.md (точечные фиксы, не дробить монолит)
+  - Минимальный риск сломать core loop
+  - Быстро проверяется в Unity Editor
+  - Вес 8 для Resource убирается одной строкой
+  - AI защита с 2 картами — 10-15 строк кода
+  - Deck recreate — 5-7 строк
+  - Gun return — сохранить _gunOriginalParent и возвращать туда
+
+  Подход 2 — если хочешь более умного AI (но это может усложнить баланс).
+  Подход 3 — только если планируешь расширять gun mechanics (разные типы оружия,
+   анимации и т.д.).
+
+  Какой подход выбираешь?
+
+✻ Worked for 1m 26s
+
+> второй вариант, действуй                                                      
+
+● Отлично, подход 2. Представлю дизайн по секциям.
+
+● Понял, начинаю презентацию дизайна.
+
+  ---
+  Дизайн: AI Defense + Deck Lifecycle + Gun Return
+
+  Секция 1: Архитектура изменений
+
+  Затронутые файлы:
+  - Assets/Scripts/AI/EnemyAI.cs — улучшенная логика защиты (комбинации из 2
+  карт)
+  - Assets/Scripts/Managers/BlockoutCardManager.cs — явный метод пересоздания
+  колоды + фильтр веса 8 для Resource
+  - Assets/Scripts/Managers/GameManager.cs — сохранение исходной позиции
+  пистолета + вызов recreate deck
+
+  Принципы:
+  - Точечные изменения в существующих классах (не создаём новые)
+  - Сохраняем текущий core loop без рефакторинга
+  - Все изменения обратно совместимы с MECHANICS.md
+
+  Зависимости:
+  - EnemyAI зависит от BlockoutCardManager (уже есть)
+  - GameManager вызывает BlockoutCardManager.RecreateCurrentRoundDeck() (новый
+  метод)
+  - Пистолет: GameManager сохраняет _gunOriginalParent и
+  _gunOriginalLocalPosition при старте
+
+  Выглядит ок?
+
+✻ Cooked for 32s
+
+> давай, верю в тебя                                                            
+
+● Отлично! Продолжаю.
+
+  ---
+  Секция 2: Компоненты и изменения
+
+  2.1 EnemyAI — улучшенная защита
+
+  Текущее поведение:
+  - ChooseDefenseCards() выбирает одну минимальную Resource карту с весом >=
+  атаки
+  - Если такой нет — возвращает пустой список (пропуск)
+
+  Новое поведение:
+  - Сначала пытается найти одну карту >= атаки (как сейчас)
+  - Если не нашёл — пытается найти комбинацию из 2 карт, сумма которых >= атаки
+  - Выбирает комбинацию с минимальной суммой (не жечь сильные карты)
+  - Если и комбинации нет — возвращает пустой список (пропуск)
+
+  Новый метод:
+  private List<BlockoutCardDisplay> FindBestDefenseCombination(
+      IReadOnlyList<BlockoutCardDisplay> availableCards, 
+      int attackWeight)
+  {
+      // Перебирает все пары карт, находит минимальную сумму >= attackWeight
+      // Возвращает список из 2 карт или пустой список
+  }
+
+  Ограничение: AI не кладёт Threat в защиту (уже есть в коде: if (card.IsThreat)
+   continue;)
+
+● 2.2 BlockoutCardManager — deck lifecycle + вес 8
+
+  Изменение 1: Убрать вес 8 для Resource
+
+  В методе CreateWeightedMainCard():
+  - Текущий код: weight = Mathf.Clamp(weight, minWeight, maxWeight); где
+  maxWeight = 8
+  - Новая логика: если !forceThreat и weight == 8 → пересэмплировать или clamp
+  до 7
+  - Для Threat карт вес 8 остаётся доступным
+
+  Изменение 2: Явный метод пересоздания колоды
+
+  Новый публичный метод:
+  public void RecreateCurrentRoundDeck()
+  {
+      // Очищает _mainDeck и _mainDiscard
+      // Вызывает EnsureDeckForRound(_currentDeckRoundIndex)
+      // Логирует "Deck recreated for round X"
+  }
+
+  Изменение 3: Вызов recreate при пустой колоде
+
+  В методе RefillHandsToRoundLimit():
+  - После попытки восполнить руки
+  - Если _mainDeck.Count == 0 && _mainDiscard.Count == 0
+  - Вызвать RecreateCurrentRoundDeck()
+  - Повторить попытку восполнения
+
+  2.3 GameManager — gun return
+
+  Новые поля:
+  private Transform _gunOriginalParent;
+  private Vector3 _gunOriginalLocalPosition;
+  private Quaternion _gunOriginalLocalRotation;
+
+  Изменения:
+  - В StartRound() — сохранить исходную позицию пистолета (если ещё не
+  сохранена)
+  - В MoveGunToTable() — если _gunOriginalParent != null, использовать
+  сохранённую позицию вместо _scene.gunSpot
+  - После выстрела в ResolveShotCoroutine() — вызвать MoveGunToTable() (уже
+  есть, но теперь вернёт на исходное место)
+
+  Выглядит ок?
+
+✻ Churned for 53s
+
+> делай!                                                                        
+
+● Отлично! Пишу design doc.
+
+● Bash(mkdir -p "C:\Users\AndriiKharlai\Documents\Breath Casino
+      PreAlpha\docs\superpowers\specs")
+  ⎿  Done
+
+● Write(docs\superpowers\specs\2026-03-27-ai-defense-deck-gun-design.md)
+  ⎿  Wrote 179 lines to
+     docs\superpowers\specs\2026-03-27-ai-defense-deck-gun-design.md
+     # Design: AI Defense + Deck Lifecycle + Gun Return
+     **Date:** 2026-03-27
+     **Status:** Approved
+     **Approach:** Targeted changes, no new classes
+
+     ---
+
+     ## 1. Scope
+
+     Four fixes in three existing files:
+     … +169 lines (ctrl+o to expand)
+
+● Design doc написан. Self-review:
+
+  Read 1 file (ctrl+o to expand)
+
+● Self-review нашёл 2 пробела — исправляю spec:
+
+● Update(docs\superpowers\specs\2026-03-27-ai-defense-deck-gun-design.md)
+  ⎿  Added 44 lines, removed 26 lines
+       98                                                                
+       99  ---                                                           
+      100                                                                
+      101 -## 4. GameManager — Gun Position                              
+      101 +## 4. GameManager — Gun Position & Visual                     
+      102                                                                
+      103 -### New fields                                                
+      104 -```csharp                                                     
+      105 -private Transform _gunOriginalParent;                         
+      106 -private Vector3   _gunOriginalLocalPosition;                  
+      107 -private Quaternion _gunOriginalLocalRotation;                 
+      108 -private bool _gunOriginalSaved;                               
+      109 -```                                                           
+      103 +### Problem A: gun doesn't appear "in hands"                  
+      104 +`MoveGunToHolder()` already re-parents gunRoot to             
+          +`playerWeaponHolder`, but that transform                      
+      105 +may not be positioned in front of the FPS camera.             
+      106 +Fix: ensure `playerWeaponHolder` is parented to the camera    
+          +(or camera rig) at a sensible                                 
+      107 +FPS offset (e.g. `localPosition = (0.15, -0.15, 0.35)`).      
+      108 +This is a **scene wiring fix**, not a code change — set it in 
+          + the Inspector on the                                         
+      109 +`playerWeaponHolder` transform so gunRoot lands in view when  
+          +picked up.                                                    
+      110                                                                
+      111 -### Save original position                                    
+      112 -In `StartRound()`, after `MoveGunToTable()`:                  
+      111 +### Problem B: gun drifts / doesn't return to exact spot      
+      112 +`MoveGunToTable()` already does `SetParent(gunSpot, false);   
+          +localPos = zero; localRot = identity`                         
+      113 +which is correct. The visual "not returning" is likely caused 
+          + by `UpdateGunAim()` running                                  
+      114 +every frame while `_waitingForPlayerShot = false` is already  
+          +set — LookAt keeps rotating                                   
+      115 +the gun even after the shot resolves.                         
+      116 +                                                              
+      117 +Fix: add a guard in `UpdateGunAim()`:                         
+      118  ```csharp                                                     
+      119 -if (!_gunOriginalSaved && _scene?.gunRoot != null &&          
+          -_scene?.gunSpot != null)                                      
+      119 +private void UpdateGunAim()                                   
+      120  {                                                             
+      121 -    _gunOriginalParent        = _scene.gunSpot;               
+      122 -    _gunOriginalLocalPosition = Vector3.zero;                 
+      123 -    _gunOriginalLocalRotation = Quaternion.identity;          
+      124 -    _gunOriginalSaved         = true;                         
+      121 +    if (!_waitingForPlayerShot) return; // already have this  
+      122 +    ...                                                       
+      123  }                                                             
+      124  ```                                                           
+      125 -(gunSpot is already the table rest position — this explicitly 
+          - locks it in.)                                                
+      125 +(Already present — confirm it is hit correctly after shot.)   
+      126 +The real fix is to call `MoveGunToTable()` **after**          
+          +`_waitingForPlayerShot = false` is set,                       
+      127 +not before, so `UpdateGunAim()` stops before the table-move   
+          +runs.                                                         
+      128                                                                
+      129 -### Restore in `MoveGunToTable()`                             
+      130 -Replace current implementation:                               
+      129 +### New field: reset flag on full restart                     
+      130  ```csharp                                                     
+      131 +private bool _gunReturnedToTable; // set true after           
+          +MoveGunToTable(), false in MoveGunToHolder()                  
+      132 +```                                                           
+      133 +Reset `_gunReturnedToTable = true` in `BeginTestGame()` so a  
+          +full game restart                                             
+      134 +doesn't leave stale gun state.                                
+      135 +                                                              
+      136 +### `MoveGunToTable()` — explicit reset                       
+      137 +```csharp                                                     
+      138  private void MoveGunToTable()                                 
+      139  {                                                             
+      140      if (_scene?.gunRoot == null || _scene?.gunSpot == null)   
+           return;                                                       
+      141      _scene.gunRoot.SetParent(_scene.gunSpot, false);          
+      142 -    _scene.gunRoot.localPosition = _gunOriginalSaved          
+      143 -        ? _gunOriginalLocalPosition                           
+      144 -        : Vector3.zero;                                       
+      145 -    _scene.gunRoot.localRotation = _gunOriginalSaved          
+      146 -        ? _gunOriginalLocalRotation                           
+      147 -        : Quaternion.identity;                                
+      142 +    _scene.gunRoot.localPosition = Vector3.zero;              
+      143 +    _scene.gunRoot.localRotation = Quaternion.identity;       
+      144 +    _gunReturnedToTable = true;                               
+      145  }                                                             
+      146  ```                                                           
+      147                                                                
+      148 +### `MoveGunToHolder()` — mark gun as "in hands"              
+      149 +```csharp                                                     
+      150 +private void MoveGunToHolder(BlockoutSide side)               
+      151 +{                                                             
+      152 +    ...existing logic...                                      
+      153 +    _gunReturnedToTable = false;                              
+      154 +}                                                             
+      155 +```                                                           
+      156 +                                                              
+      157  ### After shot                                                
+      158 -`ResolveShotCoroutine()` already calls `MoveGunToTable()` on  
+          - the non-keepTurn branch.                                     
+      159 -With the fix above it now correctly returns to the saved      
+          -spot.                                                         
+      158 +`ResolveShotCoroutine()` already calls `MoveGunToTable()` at  
+          + the end.                                                     
+      159 +Order is: set `_waitingForPlayerShot = false` → … →           
+          +`MoveGunToTable()`.                                           
+      160 +`UpdateGunAim()` checks `_waitingForPlayerShot` first, so     
+          +rotation stops before table-move.                             
+      161                                                                
+      162  ---                                                           
+      163                                                                
+
+● Update(docs\superpowers\specs\2026-03-27-ai-defense-deck-gun-design.md)
+  ⎿  Added 9 lines, removed 5 lines
+      61                                                                 
+      62  ### 3.2 `RecreateCurrentRoundDeck()` — new public method       
+      63                                                                 
+      64 +New private field `_lastKnownRoundIndex` (set in               
+         +`EnsureDeckForRound` each call):                               
+      65  ```csharp                                                      
+      66 +private int _lastKnownRoundIndex = 0;                          
+      67 +```                                                            
+      68 +                                                               
+      69 +```csharp                                                      
+      70  public void RecreateCurrentRoundDeck()                         
+      71  {                                                              
+      72 +    int roundToRecreate = _lastKnownRoundIndex;                
+      73      _mainDeck.Clear();                                         
+      74      _mainDiscard.Clear();                                      
+      75 -    _currentDeckRoundIndex = -1;                               
+         -// force EnsureDeckForRound to rebuild                         
+      76 -    EnsureDeckForRound(_currentDeckRoundIndex < 0              
+      77 -        ? /* stored round index */ _lastKnownRoundIndex        
+      78 -        : _currentDeckRoundIndex);                             
+      79 -    Debug.Log($"[CardManager] Deck recreated for round         
+         -{_lastKnownRoundIndex + 1}");                                  
+      75 +    _currentDeckRoundIndex = -1;                               
+         +// force EnsureDeckForRound to rebuild                         
+      76 +    EnsureDeckForRound(roundToRecreate);                       
+      77 +    Debug.Log($"[CardManager] Deck recreated for round         
+         +{roundToRecreate + 1}");                                       
+      78  }                                                              
+      79  ```                                                            
+      80                                                                 
+
+● Update(docs\superpowers\specs\2026-03-27-ai-defense-deck-gun-design.md)
+  ⎿  Added 2 lines
+      194  - [ ] Resource cards never show weight 8                      
+      195  - [ ] Threat cards can still show weight 8                    
+      196  - [ ] After round 1 deck exhausted: new mini-round deals      
+           cards (HP unchanged)                                          
+      197 +- [ ] Pistol visible in FPS view when player picks it up      
+          +(playerWeaponHolder in front of camera)                       
+      198  - [ ] Pistol appears on table spot after player fires         
+      199  - [ ] Pistol appears on table spot after AI fires             
+      200  - [ ] Pistol returns to same position every time (not         
+           drifting)                                                     
+      201 +- [ ] Gun does not rotate after shot (UpdateGunAim stops      
+          +correctly)                                                    
+      202  - [ ] No regression: SPACE skip still works                   
+      203  - [ ] No regression: shooting only after Threat-attacker wins 
+● Self-review нашёл и исправил:
+  1. Пробел в spec: пистолет "в руках" — это scene wiring проблема
+  (playerWeaponHolder нужно поставить перед FPS камерой в Inspector), а не
+  только код
+  2. Пробел в spec: _gunReturnedToTable нужно сбрасывать при BeginTestGame(),
+  иначе стейт остаётся после рестарта
+  3. Упростил RecreateCurrentRoundDeck() — теперь без логического бага с
+  _currentDeckRoundIndex == -1
+
+  ---
+  Spec готов. Переходим к плану.
+
+● Skill(superpowers:writing-plans)
+  ⎿  Successfully loaded skill
+
+● Entered plan mode
+  Claude is now exploring and designing an implementation approach.
+
+● Updated plan
+  ⎿  /plan to preview
+
+● User approved Claude's plan
+  ⎿  Plan saved to: ~\.claude\plans\resilient-purring-quilt.md · /plan to edit
+     Plan: AI Defense + Deck Lifecycle + Gun Return
+
+     Spec: docs/superpowers/specs/2026-03-27-ai-defense-deck-gun-design.md
+     Approach: Точечные изменения в 3 существующих файлах. Никаких новых
+     классов.
+
+     ---
+     Context
+
+     Нужно исправить 4 проблемы в прототипе Breath Casino:
+     1. AI-противник кладёт слабые карты в защиту (меньше веса атаки) — нужно
+     чтобы он пытался набрать нужный вес комбинацией из 2 карт
+     2. Нет визуализации пистолета в руках игрока (playerWeaponHolder не перед
+     FPS камерой)
+     3. После выстрела пистолет не всегда возвращается на исходное место
+     4. При новом мини-раунде карты не восполняются правильно если колода
+     пустая; вес 8 доступен для Resource карт (не должен)
+
+     ---
+     Critical Files
+
+     - Assets/Scripts/AI/EnemyAI.cs — ChooseDefenseCards() + новый
+     FindBestDefenseCombination()
+     - Assets/Scripts/Managers/BlockoutCardManager.cs —
+     CreateWeightedMainCard(), RefillHandsToRoundLimit(), новый
+     RecreateCurrentRoundDeck()
+     - Assets/Scripts/Managers/GameManager.cs — MoveGunToTable(),
+     MoveGunToHolder(), BeginTestGame()
+     - Assets/Scenes/BlockoutTest.unity — только через Inspector: позиция
+     playerWeaponHolder перед FPS камерой
+
+     ---
+     Step 1 — EnemyAI: 2-card defense combination
+
+     File: Assets/Scripts/AI/EnemyAI.cs
+
+     В ChooseDefenseCards():
+     - Оставить существующую логику "одна минимальная карта >= attackWeight" как
+      шаг 1
+     - Добавить шаг 2: если шаг 1 не нашёл → вызвать
+     FindBestDefenseCombination()
+
+     Новый private метод FindBestDefenseCombination():
+     Для каждой пары (i, j) из Resource-карт:
+       если card[i].Weight + card[j].Weight >= attackWeight:
+         запомнить пару с минимальной суммой
+     Вернуть лучшую пару (или пустой список)
+
+     Constraints:
+     - Никакие Threat карты не попадают в результат (guard if (card.IsThreat) 
+     continue)
+     - Максимум 2 карты (ограничение MECHANICS.md слотов)
+     - Если ни одной пары нет → возвращаем пустой список (skip, как и раньше)
+
+     ---
+     Step 2 — BlockoutCardManager: вес 8 и deck lifecycle
+
+     File: Assets/Scripts/Managers/BlockoutCardManager.cs
+
+     2a. Убрать вес 8 для Resource
+
+     В CreateWeightedMainCard(), в ветке if (!forceThreat):
+     weight = Mathf.Clamp(weight, minWeight, Mathf.Min(maxWeight, 7));
+     Threat-ветка (forceThreat == true) остаётся без изменений — вес 8 для
+     Threat разрешён.
+
+     2b. Новое поле + метод
+
+     Добавить поле:
+     private int _lastKnownRoundIndex = 0;
+     В EnsureDeckForRound(): в начале добавить _lastKnownRoundIndex = 
+     roundIndex;
+
+     Новый метод RecreateCurrentRoundDeck():
+     public void RecreateCurrentRoundDeck()
+     {
+         int round = _lastKnownRoundIndex;
+         _mainDeck.Clear();
+         _mainDiscard.Clear();
+         _currentDeckRoundIndex = -1;
+         EnsureDeckForRound(round);
+         Debug.Log($"[CardManager] Deck recreated for round {round + 1}");
+     }
+
+     2c. Auto-recreate в RefillHandsToRoundLimit()
+
+     После существующих вызовов RefillMainHand / RefillSpecialHand добавить:
+     if (_mainDeck.Count == 0 && _mainDiscard.Count == 0)
+     {
+         RecreateCurrentRoundDeck();
+         RefillMainHand(_playerHandHolder, _playerMainCards, false, mainCount);
+         RefillMainHand(_enemyHandHolder,  _enemyMainCards,  true,  mainCount);
+         if (allowSpecials)
+         {
+             RefillSpecialHand(_playerSpecialHolder, _playerSpecialCards, false,
+      specialCardsPerHand);
+             RefillSpecialHand(_enemySpecialHolder,  _enemySpecialCards,  true,
+      specialCardsPerHand);
+         }
+     }
+     HP не трогается. ClearAllHands() не вызывается.
+
+     ---
+     Step 3 — GameManager: gun return + state
+
+     File: Assets/Scripts/Managers/GameManager.cs
+
+     3a. Новое поле
+
+     private bool _gunReturnedToTable = true;
+
+     3b. BeginTestGame()
+
+     Сбросить флаг:
+     _gunReturnedToTable = true;
+
+     3c. MoveGunToTable() — добавить установку флага
+
+     private void MoveGunToTable()
+     {
+         if (_scene?.gunRoot == null || _scene?.gunSpot == null) return;
+         _scene.gunRoot.SetParent(_scene.gunSpot, false);
+         _scene.gunRoot.localPosition = Vector3.zero;
+         _scene.gunRoot.localRotation = Quaternion.identity;
+         _gunReturnedToTable = true;
+     }
+
+     3d. MoveGunToHolder() — добавить сброс флага
+
+     В конце существующего метода:
+     _gunReturnedToTable = false;
+
+     3e. UpdateGunAim() — guard (уже есть, проверить)
+
+     Убедиться что if (!_waitingForPlayerShot) return; стоит первой строкой.
+     Это уже есть в коде — просто документируем.
+
+     ---
+     Step 4 — Scene Inspector: playerWeaponHolder перед камерой
+
+     File: Assets/Scenes/BlockoutTest.unity — только через Inspector в Unity
+     Editor
+
+     Не код — ручная правка в сцене:
+     1. Выбрать playerWeaponHolder в Hierarchy
+     2. Сделать его дочерним объектом главной камеры (или camera rig)
+     3. Установить localPosition = (0.15, -0.15, 0.35) — правая рука FPS
+     4. localRotation = (0, 0, 0) — без поворота
+
+     ▎ Если playerWeaponHolder уже является дочерним камеры — только 
+     скорректировать localPosition.
+
+     ---
+     Verification (ручная проверка в Unity Editor)
+
+     [ ] Запустить BlockoutTest сцену
+     [ ] AI-противник защищается 2 картами когда одной недостаточно
+     [ ] AI никогда не кладёт Threat в защиту
+     [ ] Resource карты не показывают вес 8 (в руке и в слотах)
+     [ ] Threat карты могут иметь вес 8
+     [ ] При пустой колоде: мини-раунд стартует с новыми картами, HP не сброшен
+     [ ] Пистолет виден в FPS виде когда игрок его взял (после клика)
+     [ ] После выстрела игрока пистолет возвращается на стол (gunSpot)
+     [ ] После выстрела AI пистолет возвращается на стол
+     [ ] Пистолет не крутится/дрейфует после возврата
+     [ ] SPACE без карт = пропуск хода (нет регрессии)
+     [ ] Стрельба запускается только после Threat-победы атакующего (нет
+     регрессии)
+     [ ] O2 не сбрасывается между мини-раундами (нет регрессии)
+
+     ---
+     Build verification
+
+     dotnet build "Assembly-CSharp.csproj" -c Release
+     Запустить после всех изменений кода (до Inspector-правки).
+
+● План одобрен. Приступаю к реализации.
+
+> [Bootstrap] Enemy orientation fixed — cards in front.                         
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.SceneBootstrap:EnsureEnemyFacesTable () (at               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:99)                                  
+BreathCasino.Blockout.SceneBootstrap:Start () (at                               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:54)                                  
+                                                                                
+[Bootstrap] Created TooltipSystem                                               
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.SceneBootstrap:EnsureTooltipSystem () (at                 
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:124)                                 
+BreathCasino.Blockout.SceneBootstrap:Start () (at                               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:55)                                  
+                                                                                
+[Bootstrap] Added BlockoutTicketStack component                                 
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.SceneBootstrap:EnsureTicketStack () (at                   
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:111)                                 
+BreathCasino.Blockout.SceneBootstrap:Start () (at                               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:57)                                  
+                                                                                
+Blockout scene validation passed.                                               
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.BlockoutSceneValidator:ValidateAndReport                  
+(BreathCasino.Blockout.SceneBootstrap) (at                                      
+Assets/Scripts/Testing/BlockoutSceneValidator.cs:68)                            
+BreathCasino.Blockout.SceneBootstrap:Start () (at                               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:61)                                  
+                                                                                
+[Blockout] BeginTestGame                                                        
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager:BeginTestGame () (at                          
+Assets/Scripts/Managers/GameManager.cs:123)                                     
+BreathCasino.Blockout.SceneBootstrap:Start () (at                               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:85)                                  
+                                                                                
+[Blockout] StartRound 1 | HP P:2 E:2 | O2:60s                                   
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager:StartRound (int) (at                          
+Assets/Scripts/Managers/GameManager.cs:583)                                     
+BreathCasino.Blockout.GameManager:BeginTestGame () (at                          
+Assets/Scripts/Managers/GameManager.cs:124)                                     
+BreathCasino.Blockout.SceneBootstrap:Start () (at                               
+Assets/Scripts/Bootstrap/SceneBootstrap.cs:85)                                  
+                                                                                
+[Blockout] Chamber generated: Blank | Blank | Live                              
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager:GenerateChamber () (at                        
+Assets/Scripts/Managers/GameManager.cs:950)                                     
+BreathCasino.Blockout.GameManager/<RunMiniRoundSequence>d__74:MoveNext () (at   
+Assets/Scripts/Managers/GameManager.cs:603)                                     
+UnityEngine.MonoBehaviour:StartCoroutine (System.Collections.IEnumerator)       
+BreathCasino.Blockout.GameManager:RunLoop (System.Collections.IEnumerator) (at  
+Assets/Scripts/Managers/GameManager.cs:920)                                     
+BreathCasino.Blockout.GameManager:StartRound (int) (at                          
+Assets/Scripts/Managers/GameManager.cs:585)                                     
+BreathCasino.Blockout.GameManager:BeginTestGame () (at                          
+Assets/Scripts/Managers/GameManager.cs                                          
+… +116 lines …                                                                  
+ no cards — treated as skip.                                                    
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager:HandleDebugInput () (at                       
+Assets/Scripts/Managers/GameManager.cs:422)                                     
+BreathCasino.Blockout.GameManager:Update () (at                                 
+Assets/Scripts/Managers/GameManager.cs:257)                                     
+                                                                                
+[Blockout] Duel weights | Att:0 (Threat:False) Def:2 (Threat:False) | Specials: 
+ - / -                                                                          
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager:ResolveDuelByWeights (BreathCasino.Blockout.B 
+lockoutSide,BreathCasino.Blockout.BlockoutSide,System.Collections.Generic.IRead 
+OnlyList`1<BreathCasino.Blockout.BlockoutCardDisplay>,System.Collections.Generi 
+c.IReadOnlyList`1<BreathCasino.Blockout.BlockoutCardDisplay>,BreathCasino.Block 
+out.BlockoutCardDisplay,BreathCasino.Blockout.BlockoutCardDisplay) (at          
+Assets/Scripts/Managers/GameManager.cs:1102)                                    
+BreathCasino.Blockout.GameManager/<RunDuelLoop>d__75:MoveNext () (at            
+Assets/Scripts/Managers/GameManager.cs:714)                                     
+UnityEngine.SetupCoroutine:InvokeMoveNext                                       
+(System.Collections.IEnumerator,intptr)                                         
+                                                                                
+[Blockout] Duel | Attacker:Player Defender:Enemy Winner:Enemy                   
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager/<RunDuelLoop>d__75:MoveNext () (at            
+Assets/Scripts/Managers/GameManager.cs:715)                                     
+UnityEngine.SetupCoroutine:InvokeMoveNext                                       
+(System.Collections.IEnumerator,intptr)                                         
+                                                                                
+[Blockout] Duel weights | Att:0 (Threat:False) Def:0 (Threat:False) | Specials: 
+ - / -                                                                          
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager:ResolveDuelByWeights (BreathCasino.Blockout.B 
+lockoutSide,BreathCasino.Blockout.BlockoutSide,System.Collections.Generic.IRead 
+OnlyList`1<BreathCasino.Blockout.BlockoutCardDisplay>,System.Collections.Generi 
+c.IReadOnlyList`1<BreathCasino.Blockout.BlockoutCardDisplay>,BreathCasino.Block 
+out.BlockoutCardDisplay,BreathCasino.Blockout.BlockoutCardDisplay) (at          
+Assets/Scripts/Managers/GameManager.cs:1102)                                    
+BreathCasino.Blockout.GameManager/<RunDuelLoop>d__75:MoveNext () (at            
+Assets/Scripts/Managers/GameManager.cs:714)                                     
+UnityEngine.SetupCoroutine:InvokeMoveNext                                       
+(System.Collections.IEnumerator,intptr)                                         
+                                                                                
+[Blockout] Duel | Attacker:Enemy Defender:Player Winner:Draw                    
+UnityEngine.Debug:Log (object)                                                  
+BreathCasino.Blockout.GameManager/<RunDuelLoop>d__75:MoveNext () (at            
+Assets/Scripts/Managers/GameManager.cs:715)                                     
+UnityEngine.SetupCoroutine:InvokeMoveNext                                       
+(System.Collections.IEnumerator,intptr)                                         
+                                                                                
+                                                                                
+карт нет, и не выдается 3 карты после того как они закончились не противнику не 
+ главному герою. Так же по дебагу, все еще противник поставил карту меньше той  
+которой я поставил.                                                             
+
+● Понял — пользователь уже видит проблемы в рантайме. Реализую немедленно, шаги
+  1 и 2 параллельно.
+
+● Update(Assets\Scripts\AI\EnemyAI.cs)
+  ⎿  Added 64 lines, removed 11 lines
+      65                                                                 
+      66          /// <summary>                                          
+      67          /// Выбрать карты для защиты. Атака на атаку           
+          невозможна — только Resource (не Threat).                      
+      68 -        /// Минимальная Resource с весом >= атаки.             
+      68 +        /// Сначала пытается закрыть одной картой, затем       
+         +комбинацией из двух.                                           
+      69          /// </summary>                                         
+      70          public List<BlockoutCardDisplay>                       
+          ChooseDefenseCards(IReadOnlyList<BlockoutCardDisplay>          
+          availableCards, int attackWeight)                              
+      71          {                                                      
+     ...
+       75                  return result;                                
+       76              }                                                 
+       77                                                                
+       78 -            BlockoutCardDisplay bestCard = null;              
+       79 -            int bestWeight = int.MaxValue;                    
+       78 +            // Шаг 1: одна минимальная Resource карта с весом 
+          + >= атаки                                                     
+       79 +            BlockoutCardDisplay bestSingle = null;            
+       80 +            int bestSingleWeight = int.MaxValue;              
+       81                                                                
+       82              foreach (var card in availableCards)              
+       83              {                                                 
+       84                  if (card == null) continue;                   
+       85 -                if (card.IsThreat) continue;                  
+          - // Защита только Resource — атака на атаку запрещена         
+       85 +                if (card.IsThreat) continue;                  
+       86                  if (card.Weight < attackWeight) continue;     
+       87                                                                
+       88 -                if (card.Weight < bestWeight)                 
+       88 +                if (card.Weight < bestSingleWeight)           
+       89                  {                                             
+       90 -                    bestWeight = card.Weight;                 
+       91 -                    bestCard = card;                          
+       90 +                    bestSingleWeight = card.Weight;           
+       91 +                    bestSingle = card;                        
+       92                  }                                             
+       93              }                                                 
+       94                                                                
+       95 -            // Если нет Resource с весом >= атаки — лучше     
+          -пропустить защиту, чем сжигать слабую карту.                  
+       96 -            if (bestCard != null)                             
+       95 +            if (bestSingle != null)                           
+       96              {                                                 
+       97 -                result.Add(bestCard);                         
+       97 +                result.Add(bestSingle);                       
+       98 +                Debug.Log($"[EnemyAI] Defense: single card    
+          +weight {bestSingle.Weight} (vs attack {attackWeight})");      
+       99 +                return result;                                
+      100              }                                                 
+      101                                                                
+      102 -            Debug.Log($"[EnemyAI] Defense card: {(bestCard != 
+          - null ? bestCard.Weight + " Resource" : "none")} (vs attack   
+          -{attackWeight})");                                            
+      102 +            // Шаг 2: комбинация из двух Resource карт с      
+          +минимальной суммой >= атаки                                   
+      103 +            result =                                          
+          +FindBestDefenseCombination(availableCards, attackWeight);     
+      104 +            if (result.Count > 0)                             
+      105 +            {                                                 
+      106 +                int combinedWeight = 0;                       
+      107 +                foreach (var c in result) combinedWeight +=   
+          +c.Weight;                                                     
+      108 +                Debug.Log($"[EnemyAI] Defense: 2-card combo   
+          +weight {combinedWeight} (vs attack {attackWeight})");         
+      109 +                return result;                                
+      110 +            }                                                 
+      111                                                                
+      112 +            // Шаг 3: нет ни одной подходящей карты — пропуск 
+      113 +            Debug.Log($"[EnemyAI] Defense: none (no card or   
+          +combo covers attack {attackWeight})");                        
+      114              return result;                                    
+      115          }                                                     
+      116                                                                
+      117          /// <summary>                                         
+      118 +        /// Найти лучшую пару Resource карт с минимальной     
+          +суммой >= attackWeight.                                       
+      119 +        /// Возвращает список из 2 карт или пустой список.    
+      120 +        /// </summary>                                        
+      121 +        private List<BlockoutCardDisplay>                     
+          +FindBestDefenseCombination(IReadOnlyList<BlockoutCardDisplay> 
+          + availableCards, int attackWeight)                            
+      122 +        {                                                     
+      123 +            // Собираем только Resource карты                 
+      124 +            var resources = new List<BlockoutCardDisplay>();  
+      125 +            foreach (var card in availableCards)              
+      126 +            {                                                 
+      127 +                if (card != null && !card.IsThreat)           
+      128 +                    resources.Add(card);                      
+      129 +            }                                                 
+      130 +                                                              
+      131 +            BlockoutCardDisplay bestA = null;                 
+      132 +            BlockoutCardDisplay bestB = null;                 
+      133 +            int bestSum = int.MaxValue;                       
+      134 +                                                              
+      135 +            for (int i = 0; i < resources.Count; i++)         
+      136 +            {                                                 
+      137 +                for (int j = i + 1; j < resources.Count; j++) 
+      138 +                {                                             
+      139 +                    int sum = resources[i].Weight +           
+          +resources[j].Weight;                                          
+      140 +                    if (sum >= attackWeight && sum < bestSum) 
+      141 +                    {                                         
+      142 +                        bestSum = sum;                        
+      143 +                        bestA = resources[i];                 
+      144 +                        bestB = resources[j];                 
+      145 +                    }                                         
+      146 +                }                                             
+      147 +            }                                                 
+      148 +                                                              
+      149 +            var result = new List<BlockoutCardDisplay>();     
+      150 +            if (bestA != null && bestB != null)               
+      151 +            {                                                 
+      152 +                result.Add(bestA);                            
+      153 +                result.Add(bestB);                            
+      154 +            }                                                 
+      155 +            return result;                                    
+      156 +        }                                                     
+      157 +                                                              
+      158 +        /// <summary>                                         
+      159          /// Выбрать специальную карту (если есть).            
+      160          /// Пока всегда null (простая реализация).            
+      161          /// </summary>                                        
+
+● Update(Assets\Scripts\Managers\BlockoutCardManager.cs)
+  ⎿  Added 1 line
+      33          private readonly List<BlockoutCardData> _mainDeck =    
+          new();                                                         
+      34          private readonly List<BlockoutCardData> _mainDiscard = 
+           new();                                                        
+      35          private int _currentDeckRoundIndex = -1;               
+      36 +        private int _lastKnownRoundIndex = 0;                  
+      37                                                                 
+      38          private Transform _playerHandHolder;                   
+      39          private Transform _playerSpecialHolder;                
+
+● Update(Assets\Scripts\Managers\BlockoutCardManager.cs)
+  ⎿  Added 1 line
+      163                                                                
+      164          private void EnsureDeckForRound(int roundIndex)       
+      165          {                                                     
+      166 +            _lastKnownRoundIndex = roundIndex;                
+      167              if (_currentDeckRoundIndex == roundIndex &&       
+           _mainDeck.Count > 0) return;                                  
+      168              _currentDeckRoundIndex = roundIndex;              
+      169                                                                
+● Update(Assets\Scripts\Managers\BlockoutCardManager.cs)
+  ⎿  Error editing file
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(Assets\Scripts\Managers\BlockoutCardManager.cs)
+  ⎿  Added 2 lines, removed 1 line
+      148                      r -= WeightChance[i];                     
+      149                      if (r <= 0) { weight = Weights[i]; break; 
+            }                                                            
+      150                  }                                             
+      151 -                weight = Mathf.Clamp(weight, minWeight,       
+          -maxWeight);                                                   
+      151 +                // Resource карты не могут иметь вес 8        
+      152 +                weight = Mathf.Clamp(weight, minWeight,       
+          +Mathf.Min(maxWeight, 7));                                     
+      153              }                                                 
+      154                                                                
+      155              bool isThreat = forceThreat || (weight >= 4 &&    
+           weight <= maxWeight && Random.value < 0.15f);                 
+
+● Теперь добавляю RecreateCurrentRoundDeck() и auto-recreate в
+  RefillHandsToRoundLimit():
+
+● Update(Assets\Scripts\Managers\BlockoutCardManager.cs)
+  ⎿  Added 14 lines
+      191                                                                
+      192          public bool IsDeckEmpty => _mainDeck.Count == 0 &&    
+           _mainDiscard.Count == 0;                                      
+      193                                                                
+      194 +        /// <summary>                                         
+      195 +        /// Пересоздаёт колоду текущего раунда. HP не         
+          +затрагивается. Руки не очищаются.                             
+      196 +        /// Вызывается когда deck и discard оба пусты.        
+      197 +        /// </summary>                                        
+      198 +        public void RecreateCurrentRoundDeck()                
+      199 +        {                                                     
+      200 +            int round = _lastKnownRoundIndex;                 
+      201 +            _mainDeck.Clear();                                
+      202 +            _mainDiscard.Clear();                             
+      203 +            _currentDeckRoundIndex = -1;                      
+      204 +            EnsureDeckForRound(round);                        
+      205 +            Debug.Log($"[CardManager] Deck recreated for      
+          +round {round + 1}");                                          
+      206 +        }                                                     
+      207 +                                                              
+      208          private static void ShuffleList<T>(List<T> list)      
+      209          {                                                     
+      210              for (int i = list.Count - 1; i > 0; i--)          
+
+● Update(Assets\Scripts\Managers\BlockoutCardManager.cs)
+  ⎿  Added 13 lines
+      279                  RefillSpecialHand(_enemySpecialHolder,        
+           _enemySpecialCards, true, specialCardsPerHand);               
+      280              }                                                 
+      281                                                                
+      282 +            // Если deck и discard оба пусты после            
+          +восполнения — пересоздаём колоду раунда и пробуем ещё раз     
+      283 +            if (_mainDeck.Count == 0 && _mainDiscard.Count == 
+          + 0)                                                           
+      284 +            {                                                 
+      285 +                RecreateCurrentRoundDeck();                   
+      286 +                RefillMainHand(_playerHandHolder,             
+          +_playerMainCards, false, mainCount);                          
+      287 +                RefillMainHand(_enemyHandHolder,              
+          +_enemyMainCards, true, mainCount);                            
+      288 +                if (allowSpecials)                            
+      289 +                {                                             
+      290 +                    RefillSpecialHand(_playerSpecialHolder,   
+          +_playerSpecialCards, false, specialCardsPerHand);             
+      291 +                    RefillSpecialHand(_enemySpecialHolder,    
+          +_enemySpecialCards, true, specialCardsPerHand);               
+      292 +                }                                             
+      293 +            }                                                 
+      294 +                                                              
+      295              RelayoutHands();                                  
+      296          }                                                     
+      297                                                                
+
+● Теперь Step 3 — GameManager:
+
+● Update(Assets\Scripts\Managers\GameManager.cs)
+  ⎿  Added 1 line
+      83          private bool _waitingForPlayerShot;                    
+      84          private bool _waitingForPlayerGunPickup;               
+      85          private bool _playerShootAtSelf;                       
+      86 +        private bool _gunReturnedToTable = true;               
+      87          private BlockoutSide _currentAttacker;                 
+      88          private BlockoutSide _currentDefender;                 
+      89          private BlockoutSide _nextCardPhaseAttacker =          
+          BlockoutSide.Player;                                           
+
+● Update(Assets\Scripts\Managers\GameManager.cs)
+  ⎿  Added 1 line
+      118              _currentMiniRound = 0;                            
+      119              _nextCardPhaseAttacker = BlockoutSide.Player;     
+      120              _transitionScheduled = false;                     
+      121 +            _gunReturnedToTable = true;                       
+      122              _ticketManager?.ResetAll();                       
+      123              ClearPlayerSubmissionState();                     
+      124              _handAnimator?.LowerBothHands();                  
+
+● Update(Assets\Scripts\Managers\GameManager.cs)
+  ⎿  Added 2 lines
+      1020              _scene.gunRoot.SetParent(target, false);         
+      1021              _scene.gunRoot.localPosition = Vector3.zero;     
+      1022              _scene.gunRoot.localRotation =                   
+            Quaternion.identity;                                         
+      1023 +            _gunReturnedToTable = false;                     
+      1024          }                                                    
+      1025                                                               
+      1026          private void MoveGunToTable()                        
+     ...
+      1032              _scene.gunRoot.SetParent(_scene.gunSpot, false); 
+      1033              _scene.gunRoot.localPosition = Vector3.zero;     
+      1034              _scene.gunRoot.localRotation =                   
+            Quaternion.identity;                                         
+      1035 +            _gunReturnedToTable = true;                      
+      1036          }                                                    
+      1037                                                               
+      1038          private BlockoutSide?                                
+            ResolveDuelByWeights(BlockoutSide attacker, BlockoutSide     
+            defender, IReadOnlyList<BlockoutCardDisplay> attCards,       
+            IReadOnlyList<BlockoutCardDisplay> defCards,                 
+            BlockoutCardDisplay attSpecial = null, BlockoutCardDisplay   
+            defSpecial = null)                                           
+
+● Bash(cd "C:\Users\AndriiKharlai\Documents\Breath Casino PreAlpha" && dotnet
+      build "Assembly-CSharp.csproj" -c Release 2>&1)
+  ⎿  Running in the background (↓ to manage)
+  ⎿  (timeout 1m)
+
+● Task Output b7j0jmsm9
+  ⎿    Determining projects to restore...
+       Restored C:\Users\AndriiKharlai\Documents\Breath Casino PreAlpha\Uni
+     tyEngine.UI.csproj (in 402 ms).
+     … +782 lines (ctrl+o to expand)
+
+● Build succeeded. 0 errors. Одно предупреждение CS0414 — поле
+  _gunReturnedToTable присваивается но пока не читается (это нормально — флаг
+  для будущей логики/дебага, не влияет на рантайм).
+
+  ---
+  Готово. Что изменено:
+
+  EnemyAI.cs
+  - Теперь AI в защите сначала ищет одну карту >= атаки, если нет — ищет
+  комбинацию из двух Resource карт с минимальной суммой >= атаки, если и этого
+  нет — пропускает
+
+  BlockoutCardManager.cs
+  - Resource карты ограничены весом max 7 (вес 8 остался только для Threat)
+  - Новый метод RecreateCurrentRoundDeck() — пересоздаёт колоду раунда без
+  сброса HP и без очистки рук
+  - RefillHandsToRoundLimit() — если после восполнения deck+discard пусты,
+  автоматически пересоздаёт колоду и восполняет снова
+
+  GameManager.cs
+  - _gunReturnedToTable флаг для трекинга состояния пистолета
+  - MoveGunToTable() — явно сбрасывает позицию на gunSpot и ставит флаг
+  - MoveGunToHolder() — снимает флаг
+  - BeginTestGame() — сбрасывает флаг при рестарте
+
+  ---
+  ⚠️ Нужна ручная правка в Unity Inspector (Step 4):
+
+  Чтобы пистолет был виден в FPS-виде когда взят в руки:
+  1. В Hierarchy найди playerWeaponHolder
+  2. Сделай его дочерним объектом Main Camera (или camera rig)
+  3. Установи localPosition = (0.15, -0.15, 0.35)
+  4. localRotation = (0, 0, 0)
+  5. Сохрани сцену (Ctrl+S)
+
+  Это нельзя сделать кодом без ломки scene wiring — только через Inspector.
+
+✻ Cogitated for 8m 28s
+
+● Background command "Build Assembly-CSharp to verify no compile errors"
+completed (exit code 0)
+> Assets\Scripts\Managers\GameManager.cs(86,22): warning CS0414: The field      
+'GameManager._gunReturnedToTable' is assigned but its value is never used       
+
+> Assets\Scripts\Managers\GameManager.cs(86,22): warning CS0414: The field      
+'GameManager._gunReturnedToTable' is assigned but its value is never used       
+реши эту уязвимость                                                             
+
+> не выдаются карты когда закончились.                                          

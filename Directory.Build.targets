@@ -1,0 +1,20 @@
+<Project>
+  <Target Name="PrepareUnityScriptAssemblies"
+          BeforeTargets="ResolveProjectReferences;ResolveAssemblyReferences;CoreCompile"
+          Condition="Exists('$(MSBuildProjectDirectory)\Library\ScriptAssemblies')">
+    <PropertyGroup>
+      <_UnityScriptAssemblyOutput>$(MSBuildProjectDirectory)\Temp\bin\Debug</_UnityScriptAssemblyOutput>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_UnityScriptAssemblyOutput)" />
+
+    <ItemGroup>
+      <_UnityScriptAssemblies Include="$(MSBuildProjectDirectory)\Library\ScriptAssemblies\*.dll" />
+      <_UnityScriptAssemblies Include="$(MSBuildProjectDirectory)\Library\ScriptAssemblies\*.pdb" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_UnityScriptAssemblies)"
+          DestinationFolder="$(_UnityScriptAssemblyOutput)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>
